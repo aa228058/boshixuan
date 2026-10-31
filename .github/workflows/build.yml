@@ -25,15 +25,18 @@ jobs:
 
       - name: Generate Keystore
         run: |
+          # 生成你本地配置的 keystore，确保签名匹配
           keytool -genkeypair -v -keystore TMessagesProj/config/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Boshixuan"
 
       - name: Build Debug APK
         run: |
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleDebug
+          # 这里改成了 assembleAfatDebug，匹配你的源码包配置
+          ./gradlew :TMessagesProj_App:assembleAfatDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Boshixuan-Debug-APK
+          # 自动抓取所有生成的 APK
           path: '**/*.apk'
