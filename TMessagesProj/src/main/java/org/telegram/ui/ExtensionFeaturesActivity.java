@@ -1262,18 +1262,124 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         }, 120);
     }
 
-    private void showBroadcastToGroupsConfirm(String text, ArrayList<Long> targetGroups) {
-        Context context = getParentActivity();
-        if (context == null) {
+    private void showBroadcastToGroupsConfirm(String text, ArrayList<Long> allGroups) {
+    Context context = getParentActivity();
+    if (context == null) return;
+
+    ArrayList<Long> validGroups = new ArrayList<>();
+    ArrayList<String> groupNames = new ArrayList<>();
+
+    for (long id : allGroups) {
+        TLRPC.Chat chat = getMessagesController().getChat(-id);
+        if (chat != null) {
+            validGroups.add(id);
+            groupNames.add(chat.title);
+        }
+    }
+
+    if (validGroups.isEmpty()) {
+        Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show();
+        return;
+    }
+
+    boolean[] checkedArray = new boolean[validGroups.size()];
+    for (int i = 0; i < checkedArray.length; i++) checkedArray[i] = true; // 默认全选
+
+    AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
+    builder.setTitle("选择要群发的群组");
+    
+    // 多选列表
+    builder.setMultiChoiceItems(groupNames.toArray(new CharSequence[0]), checkedArray, (dialog, which, isChecked) -> {
+        checkedArray[which] = isChecked;
+    });
+
+    builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+        ArrayList<Long> selectedGroups = new ArrayList<>();
+        for (int i = 0; i < checkedArray.length; i++) {
+            if (checkedArray[i]) selectedGroups.add(validGroups.get(i));
+        }
+        
+        if (selectedGroups.isEmpty()) {
+            Toast.makeText(context, "未选择任何群组", Toast.LENGTH_SHORT).show();
             return;
         }
-        AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
-        builder.setTitle(getString(R.string.BroadcastToGroupsWarningTitle));
-        builder.setMessage(LocaleController.formatString(R.string.BroadcastToGroupsWarningText, targetGroups.size()));
-        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> sendTextToGroups(text, targetGroups));
-        builder.setNegativeButton(getString(R.string.Cancel), null);
-        showDialog(builder.create());
+        
+        // 去弹出输入时间间隔的框
+        showIntervalInputDialog(text, selectedGroups);
+    });
+    builder.setNegativeButton(getString(R.string.Cancel), null);
+    showDialog(builder.create());
+}
+
+// 新增：设置最小/最大间隔
+private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups) {
+    Context context = getParentActivity();
+    if (context == null) return;
+
+    android.widget.LinearLayout layout = new android.widget.LinearLayout(context);
+    layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+    layout.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), 0);
+
+    android.widget.TextView infoText = new android.widget.TextView(context);
+    infoText.setText("即将向选中的 " + selectedGroups.size() + " 个群组发送消息。\n请设置每条消息之间的随机间隔（秒）：");
+    infoText.setTextSize(16);
+    layout.addView(infoText);
+
+    android.widget.EditText minInput = new android.widget.EditText(context);
+    minInput.setHint("最小间隔（默认 5）");
+    minInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+    layout.addView(minInput);
+
+    android.widget.EditText maxInput = new android.widget.EditText(context);
+    maxInput.setHint("最大间隔（默认 15）");
+    maxInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+    layout.addView(maxInput);
+
+    AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
+    builder.setTitle(getString(R.string.BroadcastToGroupsWarningTitle));
+    builder.setView(layout);
+    builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
+        int minSec = 5;
+        int maxSec = 15;
+        try {
+            if (!android.text.TextUtils.isEmpty(minInput.getText())) minSec = Integer.parseInt(minInput.getText().toString());
+            if (!android.text.TextUtils.isEmpty(maxInput.getText())) maxSec = Integer.parseInt(maxInput.getText().toString());
+        } catch (Exception ignore) {}
+        
+        if (minSec < 1) minSec = 1;
+        if (maxSec <= minSec) maxSec = minSec + 1;
+
+        sendTextToGroups(text, selectedGroups, minSec, maxSec);
+    });
+    builder.setNegativeButton(getString(R.string.Cancel), null);
+    showDialog(builder.create());
+}
+
+// 修改：接收时间参数并加入随机延迟防封号
+private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int minSec, int maxSec) {
+    if (TextUtils.isEmpty(text) || targetGroups == null || targetGroups.isEmpty()) {
+        return;
     }
+    SendMessagesHelper sendMessagesHelper = SendMessagesHelper.getInstance(currentAccount);
+    
+    long currentDelay = 0;
+    int diff = (maxSec - minSec) * 1000;
+    if (diff <= 0) diff = 10000; // 安全保护
+
+    for (int i = 0, size = targetGroups.size(); i < size; i++) {
+        final long dialogId = targetGroups.get(i);
+        // 计算用户设定的随机间隔（毫秒）
+        long randomDelay = Utilities.random.nextInt(diff) + (minSec * 1000L); 
+        currentDelay += randomDelay;
+        final long finalDelay = currentDelay;
+        
+        AndroidUtilities.runOnUIThread(() -> sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false)), finalDelay);
+    }
+    Context context = getParentActivity();
+    if (context != null) {
+        Toast.makeText(context, "已开始向 " + targetGroups.size() + " 个群组发送", Toast.LENGTH_SHORT).show();
+    }
+}
 
     private ArrayList<Long> getBroadcastTargetGroups() {
         ArrayList<Long> result = new ArrayList<>();
