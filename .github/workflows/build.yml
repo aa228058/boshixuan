@@ -25,18 +25,31 @@ jobs:
 
       - name: Generate Keystore
         run: |
-          # 生成你本地配置的 keystore，确保签名匹配
           keytool -genkeypair -v -keystore TMessagesProj/config/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Boshixuan"
 
       - name: Build Debug APK
+        id: build_step
+        continue-on-error: true
         run: |
           chmod +x gradlew
-          # 这里改成了 assembleAfatDebug，匹配你的源码包配置
-          ./gradlew :TMessagesProj_App:assembleAfatDebug
+          ./gradlew :TMessagesProj_App:assembleAfatDebug 2>&1 | tee build.log
+
+      # 👇 新增：自动提取报错，显示在页面摘要里
+      - name: Extract Error (if failed)
+        if: steps.build_step.outcome == 'failure'
+        run: |
+          echo "### 🚨 编译报错如下：" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          grep -i -C 2 "error:" build.log | head -n 50 >> $GITHUB_STEP_SUMMARY
+          grep -i -C 2 "FAILURE:" build.log | head -n 50 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail Job
+        if: steps.build_step.outcome == 'failure'
+        run: exit 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Boshixuan-Debug-APK
-          # 自动抓取所有生成的 APK
           path: '**/*.apk'
