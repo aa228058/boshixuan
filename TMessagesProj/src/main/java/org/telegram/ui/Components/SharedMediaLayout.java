@@ -185,6 +185,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
     public static final int TAB_SAVED_MESSAGES = 12;
     public static final int TAB_BOT_PREVIEWS = 13;
     public static final int TAB_GIFTS = 14;
+    public static final int TAB_MANGO_ACTIVITY = 15;
     private static final int TAB_STORIES_ALBUM_PREFIX = 0x00010000;
     private static final int TAB_STORIES_ALBUM_MASK = 0x0000FFFF;
 
@@ -4231,6 +4232,16 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         scrollSlidingTextTabStrip.setDelegate(new ScrollSlidingTextTabStrip.ScrollSlidingTabStripDelegate() {
             @Override
             public void onPageSelected(int id, boolean forward) {
+            // 如果切换到其他标签，隐藏“活动”覆盖层
+if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
+    mActivityOverlay.setVisibility(android.view.View.GONE);
+}
+
+if (id == TAB_MANGO_ACTIVITY) {
+    showRealActivityPage();
+    scrollSlidingTextTabStrip.scrollToTabWithId(mediaPages[0].selectedType);
+    return;
+}
                 if (mediaPages[0].selectedType == id) {
                     return;
                 }
@@ -6767,6 +6778,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 idToView = null;
             }
             final ArrayList<Pair<Integer, CharSequence>> tabs = new ArrayList<>();
+
+if (!isStoriesView()) {
+    tabs.add(0, new Pair(TAB_MANGO_ACTIVITY, "活动"));
+}
 
             if (isSearchingStories()) {
                 tabs.add(new Pair(TAB_STORIES, getString(R.string.ProfileStories)));
@@ -11889,4 +11904,62 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             giftsContainer.initBlurCapture(parent);
         }
     }
+    private android.widget.FrameLayout mActivityOverlay;
+
+private void showRealActivityPage() {
+    if (getContext() == null) return;
+
+    if (mActivityOverlay == null) {
+        mActivityOverlay = new android.widget.FrameLayout(getContext());
+        mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
+        addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+    }
+    mActivityOverlay.setVisibility(android.view.View.VISIBLE);
+    mActivityOverlay.removeAllViews();
+
+    android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
+    mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
+
+    FriendActivityPage.fetch(currentAccount, dialog_id, new FriendActivityPage.Callback() {
+        @Override
+        public void onResult(ArrayList<TLRPC.Message> messages) {
+            if (mActivityOverlay == null) return;
+            mActivityOverlay.removeAllViews();
+
+            if (messages.isEmpty()) {
+                android.widget.TextView tv = new android.widget.TextView(getContext());
+                tv.setText("近期没有发言");
+                tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, android.view.Gravity.CENTER));
+                return;
+            }
+
+            android.widget.ListView listView = new android.widget.ListView(getContext());
+            listView.setDivider(null);
+            listView.setDividerHeight(0);
+            listView.setAdapter(new FriendActivityAdapter(messages));
+            
+            listView.setOnItemClickListener((parent, view, position, id) -> {
+                TLRPC.Message msg = messages.get(position);
+                android.content.Intent intent = new android.content.Intent(getContext(), org.telegram.ui.LaunchActivity.class);
+                intent.putExtra("chatId", msg.dialog_id);
+                intent.putExtra("message_id", msg.id);
+                getContext().startActivity(intent);
+            });
+
+            mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+        }
+
+        @Override
+        public void onError(String error) {
+            if (mActivityOverlay != null) {
+                mActivityOverlay.removeAllViews();
+                android.widget.TextView tv = new android.widget.TextView(getContext());
+                tv.setText("加载失败: " + error);
+                tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, android.view.Gravity.CENTER));
+            }
+        }
+    });
+}
 }
