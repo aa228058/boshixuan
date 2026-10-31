@@ -468,23 +468,43 @@ public class ApplicationLoader extends Application {
     }
 
     public static void startPushService() {
-        SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
+    SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
+    boolean enabled;
+    if (preferences.contains("pushService")) {
+        enabled = preferences.getBoolean("pushService", true);
+    } else {
+        enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
+    }
+    
+    if (enabled) {
+        // 1. 关键修改：改用 startForegroundService，防止 Android 8.0+ 后台启动普通服务崩溃
+        try {
+            androidx.core.content.ContextCompat.startForegroundService(applicationContext, new Intent(applicationContext, NotificationsService.class));
+        } catch (Throwable ignore) {
         }
-        if (enabled) {
-            try {
-                applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
-            } catch (Throwable ignore) {
 
-            }
-        } else {
-            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+        // 2. 关键新增：加入 AlarmManager 每分钟强制唤醒（防杀的终极手段）
+        try {
+            android.app.AlarmManager am = (android.app.AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            Intent i = new Intent(applicationContext, NotificationsService.class);
+            android.app.PendingIntent pi = android.app.PendingIntent.getService(applicationContext, 0, i, android.app.PendingIntent.FLAG_MUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+            
+            am.cancel(pi);
+            am.setRepeating(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 60000, pi);
+        } catch (Throwable ignore) {
+        }
+        
+    } else {
+        // 关闭时：停止服务并取消闹钟
+        applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+        try {
+            android.app.AlarmManager am = (android.app.AlarmManager) applicationContext.getSystemService(Context.ALARM_SERVICE);
+            android.app.PendingIntent pi = android.app.PendingIntent.getService(applicationContext, 0, new Intent(applicationContext, NotificationsService.class), android.app.PendingIntent.FLAG_MUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+            am.cancel(pi);
+        } catch (Throwable ignore) {
         }
     }
+}
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
