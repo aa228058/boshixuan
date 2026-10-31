@@ -1367,11 +1367,11 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
     if (diff <= 0) diff = 10000; // 安全保护
 
     for (int i = 0, size = targetGroups.size(); i < size; i++) {
-        final long dialogId = targetGroups.get(i);
-        // 计算用户设定的随机间隔（毫秒）
-        long randomDelay = Utilities.random.nextInt(diff) + (minSec * 1000L); 
-        currentDelay += randomDelay;
-        final long finalDelay = currentDelay;
+    final long dialogId = targetGroups.get(i);
+    // 计算用户设定的随机间隔（毫秒），加上完整包名 org.telegram.messenger.Utilities
+    long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L); 
+    currentDelay += randomDelay;
+    final long finalDelay = currentDelay;
         
         AndroidUtilities.runOnUIThread(() -> sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false)), finalDelay);
     }
