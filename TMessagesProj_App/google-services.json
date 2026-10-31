@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1081207699206",
+    "project_id": "boshixuan",
+    "storage_bucket": "boshixuan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1081207699206:android:70dca8cbbb98f65db61087",
+        "android_client_info": {
+          "package_name": "com.boshixuan.im"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_eeL1avFL4SseAyLaesoMfVW-IfJNCyQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
