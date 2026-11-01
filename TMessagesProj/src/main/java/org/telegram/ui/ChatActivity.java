@@ -9524,9 +9524,6 @@ public class ChatActivity extends BaseFragment implements
                 msg.stableId = lastStableId++;
             }
             msg.isOutOwnerCached = null;
-if (msg.messageOwner != null && from != null && from.messageOwner != null) {
-    msg.messageOwner.out = from.messageOwner.out;
-}
 msg.isOutOwner();
 
             if (msg.hasValidGroupId()) {
@@ -9593,13 +9590,6 @@ msg.isOutOwner();
                 continue;
             }
             msg.isOutOwnerCached = null;
-if (msg.messageOwner != null && from != null && from.messageOwner != null) {
-    msg.messageOwner.out = from.messageOwner.out;
-}
-// 顺手把回复也补齐
-if (msg.replyMessageObject == null && from != null && from.replyMessageObject != null) {
-    msg.replyMessageObject = from.replyMessageObject;
-}
 chatAdapter.filteredMessages.add(msg);
             filteredMessagesDict.put(msg.getId(), msg);
         }
