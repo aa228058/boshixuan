@@ -4881,14 +4881,23 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     private void checkCurrentTabValid() {
-        int id = scrollSlidingTextTabStrip.getCurrentTabId();
-        if (!scrollSlidingTextTabStrip.hasTab(id)) {
-            id = scrollSlidingTextTabStrip.getFirstTabId();
-            scrollSlidingTextTabStrip.setInitialTabId(id);
-            mediaPages[0].selectedType = id;
-            switchToCurrentSelectedMode(false);
+    int id = scrollSlidingTextTabStrip.getCurrentTabId();
+    if (!scrollSlidingTextTabStrip.hasTab(id)) {
+        id = -1;
+        int[] tabIds = scrollSlidingTextTabStrip.getTabIds();
+        for (int tabId : tabIds) {
+            // 关键：回退时自动跳过“活动”标签，寻找第一个正常的媒体标签
+            if (tabId != TAB_MANGO_ACTIVITY) { 
+                id = tabId; 
+                break; 
+            }
         }
+        if (id < 0) return;
+        scrollSlidingTextTabStrip.setInitialTabId(id);
+        mediaPages[0].selectedType = id;
+        switchToCurrentSelectedMode(false);
     }
+}
 
     public void setNewMediaCounts(int[] mediaCounts) {
         boolean hadMedia = false;
@@ -7265,7 +7274,13 @@ if (!isStoriesView()) {
 
             } else if (mediaPages[a].selectedType == TAB_GIFTS) {
 
-            } else {
+} else if (mediaPages[a].selectedType == TAB_MANGO_ACTIVITY) {
+    // 👇 新增：活动页面由 mActivityOverlay 独立处理，不碰普通媒体数组
+    if (currentAdapter != null) {
+        recycleAdapter(currentAdapter);
+        mediaPages[a].listView.setAdapter(null);
+    }
+} else {
                 if (!sharedMediaData[mediaPages[a].selectedType].loading && !sharedMediaData[mediaPages[a].selectedType].endReached[0] && sharedMediaData[mediaPages[a].selectedType].messages.isEmpty()) {
                     sharedMediaData[mediaPages[a].selectedType].loading = true;
                     documentsAdapter.notifyDataSetChanged();
