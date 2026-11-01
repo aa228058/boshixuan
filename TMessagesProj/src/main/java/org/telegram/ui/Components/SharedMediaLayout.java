@@ -4239,7 +4239,7 @@ if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
 
 if (id == TAB_MANGO_ACTIVITY) {
     showRealActivityPage();
-    scrollSlidingTextTabStrip.scrollToTabWithId(mediaPages[0].selectedType);
+    scrollSlidingTextTabStrip.selectTabWithId(mediaPages[0].selectedType, 1f);
     return;
 }
                 if (mediaPages[0].selectedType == id) {
@@ -11920,7 +11920,7 @@ private void showRealActivityPage() {
     android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
     mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
-    FriendActivityPage.fetch(currentAccount, dialog_id, new FriendActivityPage.Callback() {
+    FriendActivityPage.fetch(org.telegram.messenger.UserConfig.selectedAccount, dialog_id, new FriendActivityPage.Callback() {
         @Override
         public void onResult(ArrayList<TLRPC.Message> messages) {
             if (mActivityOverlay == null) return;

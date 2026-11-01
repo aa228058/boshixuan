@@ -40,7 +40,7 @@ public class FriendActivityPage {
                 TLRPC.TL_messages_search searchReq = new TLRPC.TL_messages_search();
                 searchReq.peer = MessagesController.getInstance(currentAccount).getInputPeer(-chatId);
                 searchReq.q = ""; 
-                searchReq.from_id = MessagesController.getInstance(currentAccount).getInputUser(userId);
+                searchReq.from_id = MessagesController.getInstance(currentAccount).getInputPeer(userId);
                 searchReq.filter = new TLRPC.TL_inputMessagesFilterEmpty();
                 searchReq.limit = 10; // 每个群拉取10条
                 

@@ -62,16 +62,17 @@ public class FriendActivityAdapter extends BaseAdapter {
         AvatarDrawable drawable = new AvatarDrawable();
         
         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-msg.dialog_id);
-        if (chat != null) {
-            drawable.setInfo(chat);
-            if (chat.photo != null) {
-                avatar.setImage(chat.photo.photo_small, "50_50", drawable);
-            } else {
-                avatar.setImageDrawable(drawable);
-            }
-        } else {
-            avatar.setImageDrawable(drawable);
-        }
+if (chat != null) {
+    drawable.setInfo(chat);
+    if (chat.photo != null) {
+        // 👇 关键修改：套上一层 ImageLocation
+        avatar.setImage(org.telegram.messenger.ImageLocation.getForLocal(chat.photo.photo_small), "50_50", drawable);
+    } else {
+        avatar.setImageDrawable(drawable);
+    }
+} else {
+    avatar.setImageDrawable(drawable);
+}
         
         LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
         avatarLp.rightMargin = AndroidUtilities.dp(12);
@@ -93,11 +94,12 @@ public class FriendActivityAdapter extends BaseAdapter {
         topRow.addView(titleView, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
         
         TextView timeView = new TextView(context);
-        timeView.setText(LocaleController.getInstance().formatterDay.format((long) msg.date * 1000));
-        timeView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        timeView.setTextSize(13);
-        topRow.addView(timeView);
-        contentLayout.addView(topRow);
+// 使用原生的 DateFormat，完美解决私有变量报错
+timeView.setText(android.text.format.DateFormat.format("MM-dd HH:mm", (long) msg.date * 1000));
+timeView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+timeView.setTextSize(13);
+topRow.addView(timeView);
+contentLayout.addView(topRow);
 
         TextView msgView = new TextView(context);
         String text = mo.messageText != null ? mo.messageText.toString() : "[媒体消息]";
