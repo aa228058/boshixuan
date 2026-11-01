@@ -64,20 +64,14 @@ public class FriendActivityAdapter extends BaseAdapter {
         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-msg.dialog_id);
 if (chat != null) {
     drawable.setInfo(chat);
-    if (chat.photo != null) {
-        // 👇 关键修改：套上一层 ImageLocation
-        avatar.setImage(org.telegram.messenger.ImageLocation.getForLocal(chat.photo.photo_small), "50_50", drawable);
-    } else {
-        avatar.setImageDrawable(drawable);
-    }
-} else {
-    avatar.setImageDrawable(drawable);
 }
-        
-        LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
-        avatarLp.rightMargin = AndroidUtilities.dp(12);
-        layout.addView(avatar, avatarLp);
+// 直接使用纯色底色，不加载真实图片，绝对不报错
+avatar.setImageDrawable(drawable);
 
+LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
+avatarLp.rightMargin = AndroidUtilities.dp(12);
+layout.addView(avatar, avatarLp);
+        
         // 2. 内容
         LinearLayout contentLayout = new LinearLayout(context);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
