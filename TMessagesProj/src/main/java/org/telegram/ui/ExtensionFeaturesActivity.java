@@ -1285,7 +1285,8 @@ public class ExtensionFeaturesActivity extends BaseFragment {
     boolean[] checkedArray = new boolean[validGroups.size()];
     for (int i = 0; i < checkedArray.length; i++) checkedArray[i] = true; // 默认全选
 
-    AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
+    // 👇 关键修复：换成 Android 原生的 AlertDialog
+    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(context);
     builder.setTitle("选择要群发的群组");
     
     // 多选列表
@@ -1308,7 +1309,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         showIntervalInputDialog(text, selectedGroups);
     });
     builder.setNegativeButton(getString(R.string.Cancel), null);
-    showDialog(builder.create());
+    builder.show(); // 👈 原生弹窗直接 show()
 }
 
 // 新增：设置最小/最大间隔
@@ -1335,7 +1336,8 @@ private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups
     maxInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
     layout.addView(maxInput);
 
-    AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
+    // 👇 这里也换成原生 AlertDialog
+    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(context);
     builder.setTitle(getString(R.string.BroadcastToGroupsWarningTitle));
     builder.setView(layout);
     builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
@@ -1352,7 +1354,7 @@ private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups
         sendTextToGroups(text, selectedGroups, minSec, maxSec);
     });
     builder.setNegativeButton(getString(R.string.Cancel), null);
-    showDialog(builder.create());
+    builder.show(); // 👈 原生弹窗直接 show()
 }
 
 // 修改：接收时间参数并加入随机延迟防封号
@@ -1367,11 +1369,11 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
     if (diff <= 0) diff = 10000; // 安全保护
 
     for (int i = 0, size = targetGroups.size(); i < size; i++) {
-    final long dialogId = targetGroups.get(i);
-    // 计算用户设定的随机间隔（毫秒），加上完整包名 org.telegram.messenger.Utilities
-    long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L); 
-    currentDelay += randomDelay;
-    final long finalDelay = currentDelay;
+        final long dialogId = targetGroups.get(i);
+        // 计算用户设定的随机间隔（毫秒），加上完整包名 org.telegram.messenger.Utilities
+        long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L); 
+        currentDelay += randomDelay;
+        final long finalDelay = currentDelay;
         
         AndroidUtilities.runOnUIThread(() -> sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false)), finalDelay);
     }
