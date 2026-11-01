@@ -1357,30 +1357,34 @@ private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups
     builder.show(); // 👈 原生弹窗直接 show()
 }
 
-// 修改：接收时间参数并加入随机延迟防封号
 private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int minSec, int maxSec) {
     if (TextUtils.isEmpty(text) || targetGroups == null || targetGroups.isEmpty()) {
         return;
     }
     SendMessagesHelper sendMessagesHelper = SendMessagesHelper.getInstance(currentAccount);
     
-    long currentDelay = 0;
-    int diff = (maxSec - minSec) * 1000;
-    if (diff <= 0) diff = 10000; // 安全保护
+    // 投递到后台队列，防止 UI 线程阻塞
+    org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
+        long currentDelay = 0;
+        int diff = (maxSec - minSec) * 1000;
+        if (diff <= 0) diff = 10000;
 
-    for (int i = 0, size = targetGroups.size(); i < size; i++) {
-        final long dialogId = targetGroups.get(i);
-        // 计算用户设定的随机间隔（毫秒），加上完整包名 org.telegram.messenger.Utilities
-        long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L); 
-        currentDelay += randomDelay;
-        final long finalDelay = currentDelay;
-        
-        AndroidUtilities.runOnUIThread(() -> sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false)), finalDelay);
-    }
-    Context context = getParentActivity();
-    if (context != null) {
-        Toast.makeText(context, "已开始向 " + targetGroups.size() + " 个群组发送", Toast.LENGTH_SHORT).show();
-    }
+        for (int i = 0, size = targetGroups.size(); i < size; i++) {
+            final long dialogId = targetGroups.get(i);
+            // 👇 核心：生成随机 ID，Mango 底层必须要有这个才肯发！
+            final long randomId = org.telegram.messenger.Utilities.random.nextLong();
+            
+            long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L);
+            currentDelay += randomDelay;
+            final long finalDelay = currentDelay;
+
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(
+                    text, dialogId, null, null, null, true, null, null, null, true, 0, 0, randomId, false
+                ));
+            }, finalDelay);
+        }
+    });
 }
 
     private ArrayList<Long> getBroadcastTargetGroups() {

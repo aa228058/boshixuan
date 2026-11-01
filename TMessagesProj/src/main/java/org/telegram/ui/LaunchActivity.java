@@ -257,7 +257,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     public final static String EXTRA_FORCE_REQUEST = "force_request";
     public final static Pattern PREFIX_T_ME_PATTERN = Pattern.compile("^(?:http(?:s|)://|)([A-z0-9-]+?)\\.t\\.me");
     private static final String PREF_DEFAULT_SENSITIVE_APPLIED = "default_sensitive_enabled_v1";
-
+    
+public static String pendingBroadcastText = null;
+public static int pendingBroadcastInterval = 10;
     public static boolean isActive;
     public static boolean isResumed;
     public static Runnable onResumeStaticCallback;
@@ -6134,10 +6136,45 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return true;
     }
 
-    @Override
-    public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<MessagesStorage.TopicKey> dids, CharSequence message, boolean param, boolean _notify, int _scheduleDate, int scheduleRepeatPeriod, TopicsFragment topicsFragment) {
-        final int account = dialogsFragment != null ? dialogsFragment.getCurrentAccount() : currentAccount;
+@Override
+public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<MessagesStorage.TopicKey> dids, CharSequence message, boolean param, boolean _notify, int _scheduleDate, int scheduleRepeatPeriod, TopicsFragment topicsFragment) {
+    
+    // 👇 【新增：真群发拦截开始】 👇
+    if (pendingBroadcastText != null && !pendingBroadcastText.isEmpty()) {
+        if (dids == null || dids.isEmpty()) {
+            android.widget.Toast.makeText(this, "未选择任何群组", android.widget.Toast.LENGTH_SHORT).show();
+            return true; 
+        }
 
+        final String textToSend = pendingBroadcastText;
+        final int interval = pendingBroadcastInterval;
+        
+        StringBuilder preview = new StringBuilder();
+        preview.append("消息内容：\n").append(textToSend).append("\n\n");
+        preview.append("发送间隔：").append(interval).append(" 秒\n\n");
+        preview.append("选中群组：").append(dids.size()).append(" 个\n\n");
+        
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("确认群发")
+            .setMessage(preview.toString())
+            .setNegativeButton("取消", (d, w) -> pendingBroadcastText = null)
+            .setPositiveButton("确认发送", (dialog, which) -> {
+                pendingBroadcastText = null; 
+                ArrayList<Long> targetGroups = new ArrayList<>();
+                for (MessagesStorage.TopicKey key : dids) {
+                    targetGroups.add(key.dialogId);
+                }
+                // 🔥 真正触发发送
+                sendBroadcastMessages(textToSend, targetGroups, interval);
+            })
+            .show();
+
+        return true; // 阻断原生转发
+    }
+    // 👆 【新增：真群发拦截结束】 👆
+
+    final int account = dialogsFragment != null ? dialogsFragment.getCurrentAccount() : currentAccount;
+    
         if (exportingChatUri != null) {
             Uri uri = exportingChatUri;
             ArrayList<Uri> documentsUris = documentsUrisArray != null ? new ArrayList<>(documentsUrisArray) : null;
@@ -8991,4 +9028,35 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     public PipActivityController getPipController() {
         return pipActivityController;
     }
+    
+    private void sendBroadcastMessages(String text, ArrayList<Long> targetGroups, int intervalSec) {
+    // 获取底层发送助手
+    org.telegram.messenger.SendMessagesHelper sendMessagesHelper = 
+        org.telegram.messenger.SendMessagesHelper.getInstance(UserConfig.selectedAccount);
+    
+    long currentDelay = 0;
+
+    for (int i = 0; i < targetGroups.size(); i++) {
+        final long dialogId = targetGroups.get(i);
+        // 核心：生成随机 ID，底层必须用这个防重发
+        final long randomId = org.telegram.messenger.Utilities.random.nextLong();
+        
+        // 延迟计算（加一点随机波动防封）
+        int randomOffset = org.telegram.messenger.Utilities.random.nextInt(5) - 2; 
+        long delayMs = (intervalSec + randomOffset) * 1000L;
+        if (delayMs < 1000L) delayMs = 1000L;
+
+        currentDelay += delayMs;
+        final long finalDelay = currentDelay;
+
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+            sendMessagesHelper.sendMessage(org.telegram.messenger.SendMessagesHelper.SendMessageParams.of(
+                text, dialogId, null, null, null, true, null, null, null, true, 0, 0, randomId, false
+            ));
+        }, finalDelay);
+    }
+    
+    android.widget.Toast.makeText(this, "🚀 已开始向 " + targetGroups.size() + " 个群后台发送！", android.widget.Toast.LENGTH_LONG).show();
 }
+
+
