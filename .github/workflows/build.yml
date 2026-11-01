@@ -11,7 +11,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. 腾出 20GB+ 空间，但保留 Android SDK
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -26,7 +25,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'  # 👈 开启缓存，这次几分钟就能跑完
+          cache: 'gradle'
 
       - name: Create local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -35,24 +34,23 @@ jobs:
         run: |
           keytool -genkeypair -v -keystore TMessagesProj/config/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Boshixuan"
 
+      # 👇 关键修改：去掉了 continue-on-error，如果编译失败，直接变红叉
       - name: Build Debug APK
-        id: build_step
-        continue-on-error: true
         run: |
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleAfatDebug 2>&1 | tee build.log
+          ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace
 
-      # 2. 全盘搜刮 APK（防止路径找不到）
-      - name: Collect APK
+      # 👇 如果成功，打印出所有文件，看看它到底藏在哪
+      - name: Show Build Directory
         if: always()
         run: |
-          mkdir -p output_apk
-          find . -name "*.apk" -exec cp {} output_apk/ \;
-          ls -la output_apk/
+          echo "Searching for APK..."
+          find . -name "*.apk" -type f
+          echo "Directory structure:"
+          ls -R TMessagesProj_App/build/outputs/apk/ || true
 
       - name: Upload APK
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Boshixuan-APK
-          path: output_apk/*.apk
+          path: '**/*.apk'
