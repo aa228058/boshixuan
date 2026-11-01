@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="MangoPerformanceTitle">芒果性能监控</string>
+    <string name="MangoPerformanceTitle">博士轩性能监控</string>
     <string name="MangoPerformanceMemory">客户端内存</string>
     <string name="MangoPerformanceBattery">设备电池状态</string>
     <string name="MangoPerformanceBatteryLevel">电量</string>
