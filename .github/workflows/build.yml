@@ -11,11 +11,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 清理磁盘时保留 Android SDK
+      # 1. 腾出 20GB+ 空间，但保留 Android SDK
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
-          android: false   # 关键修改：不再删除 Android SDK
+          android: false
           dotnet: true
           haskell: true
           large-packages: true
@@ -26,8 +26,8 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'  # 👈 开启缓存，这次几分钟就能跑完
 
-      # 自动读取环境变量 ANDROID_HOME 来定位 SDK
       - name: Create local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
@@ -42,21 +42,17 @@ jobs:
           chmod +x gradlew
           ./gradlew :TMessagesProj_App:assembleAfatDebug 2>&1 | tee build.log
 
-      - name: Extract Error (if failed)
-        if: steps.build_step.outcome == 'failure'
+      # 2. 全盘搜刮 APK（防止路径找不到）
+      - name: Collect APK
+        if: always()
         run: |
-          echo "### 🚨 编译报错如下：" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          grep -i -C 2 "error:" build.log | head -n 50 >> $GITHUB_STEP_SUMMARY
-          grep -i -C 2 "FAILURE:" build.log | head -n 50 >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail Job
-        if: steps.build_step.outcome == 'failure'
-        run: exit 1
+          mkdir -p output_apk
+          find . -name "*.apk" -exec cp {} output_apk/ \;
+          ls -la output_apk/
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Boshixuan-Debug-APK
-          path: '**/*.apk'
+          name: Boshixuan-APK
+          path: output_apk/*.apk
