@@ -9059,4 +9059,4 @@ public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<Messa
     android.widget.Toast.makeText(this, "🚀 已开始向 " + targetGroups.size() + " 个群后台发送！", android.widget.Toast.LENGTH_LONG).show();
 }
 
-
+}
