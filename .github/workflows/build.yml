@@ -11,11 +11,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 清理磁盘（去掉了过时的 tool-cache 警告）
+      # 清理磁盘时保留 Android SDK
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
-          android: true
+          android: false   # 关键修改：不再删除 Android SDK
           dotnet: true
           haskell: true
           large-packages: true
@@ -27,9 +27,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 👇 核心修复：手动告诉 Gradle 安卓 SDK 在哪里
+      # 自动读取环境变量 ANDROID_HOME 来定位 SDK
       - name: Create local.properties
-        run: echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Generate Keystore
         run: |
@@ -42,7 +42,6 @@ jobs:
           chmod +x gradlew
           ./gradlew :TMessagesProj_App:assembleAfatDebug 2>&1 | tee build.log
 
-      # 自动提取报错（方便手机看）
       - name: Extract Error (if failed)
         if: steps.build_step.outcome == 'failure'
         run: |
