@@ -18,7 +18,7 @@ final class MangoSettingsSearchIndex {
         entries.add(new Entry(91, R.string.MangoAutoReadReplyAddGroup, R.string.MangoAutoReadReplyGroups, "已读乱回 自动已读 随机回复 群组 私聊 random reply groups private"));
         entries.add(new Entry(85, R.string.MangoUnifiedBottomTab, R.string.MangoUnifiedInbox, "跨账号 多账号 汇总 统一 消息 inbox accounts"));
         entries.add(new Entry(86, R.string.MangoUnifiedInbox, R.string.MangoUnifiedInbox, "跨账号 多账号 汇总 统一 消息 inbox accounts"));
-        entries.add(new Entry(87, R.string.MangoRestrictionTitleSetting, R.string.AppIdentitySettings, "双向 限制 名称 标题 芒果客户端"));
+        entries.add(new Entry(87, R.string.MangoRestrictionTitleSetting, R.string.AppIdentitySettings, "双向 限制 名称 标题 博士轩客户端"));
         entries.add(new Entry(88, R.string.DownloadRetentionTitle, R.string.DownloadRetentionTitle, "文件 保留 一天 一周 永久 到期 清理 retention download"));
         entries.add(new Entry(49, R.string.MessageDoubleTapAction, R.string.ExtensionMessageActions, "double tap menu order 双击菜单排序"));
         entries.add(new Entry(49, R.string.MessageDoubleTapReaction, R.string.ExtensionMessageActions, "double tap menu order 双击菜单排序"));
