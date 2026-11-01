@@ -60,7 +60,7 @@ import java.util.TimeZone;
 
 public class LocaleController {
 
-    private static final String DEFAULT_CUSTOM_APP_NAME = "芒果客户端";
+    private static final String DEFAULT_CUSTOM_APP_NAME = "博士轩客户端";
     private static final String KEY_CUSTOM_APP_NAME = "custom_app_name";
 
     static final int QUANTITY_OTHER = 0x0000;
@@ -1278,7 +1278,7 @@ public class LocaleController {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         if (!preferences.getBoolean("custom_app_name_v45", false)) {
             SharedPreferences.Editor editor = preferences.edit().putBoolean("custom_app_name_v45", true);
-            if ("芒果版Telegram".equals(preferences.getString(KEY_CUSTOM_APP_NAME, ""))) editor.remove(KEY_CUSTOM_APP_NAME);
+            if ("博士轩版Telegram".equals(preferences.getString(KEY_CUSTOM_APP_NAME, ""))) editor.remove(KEY_CUSTOM_APP_NAME);
             editor.apply();
         }
         String value = preferences.getString(KEY_CUSTOM_APP_NAME, DEFAULT_CUSTOM_APP_NAME);
