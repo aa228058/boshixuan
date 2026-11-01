@@ -34,23 +34,37 @@ jobs:
         run: |
           keytool -genkeypair -v -keystore TMessagesProj/config/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Boshixuan"
 
-      # 👇 关键修改：去掉了 continue-on-error，如果编译失败，直接变红叉
       - name: Build Debug APK
+        id: build_step
+        continue-on-error: true
         run: |
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace
+          # 限制内存并用 tee 同时输出到日志和文件
+          ./gradlew :TMessagesProj_App:assembleAfatDebug -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2 2>&1 | tee build.log
 
-      # 👇 如果成功，打印出所有文件，看看它到底藏在哪
-      - name: Show Build Directory
+      # 如果失败，自动提取最后 30 行日志，并显示在网页摘要里
+      - name: Show Real Error
+        if: steps.build_step.outcome == 'failure'
+        run: |
+          echo "### 🚨 编译失败，最后 30 行日志如下：" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+          tail -n 30 build.log >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail Job
+        if: steps.build_step.outcome == 'failure'
+        run: exit 1
+
+      - name: Collect APK
         if: always()
         run: |
-          echo "Searching for APK..."
-          find . -name "*.apk" -type f
-          echo "Directory structure:"
-          ls -R TMessagesProj_App/build/outputs/apk/ || true
+          mkdir -p output_apk
+          find . -name "*.apk" -exec cp {} output_apk/ \;
+          ls -la output_apk/
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Boshixuan-APK
-          path: '**/*.apk'
+          path: output_apk/*.apk
