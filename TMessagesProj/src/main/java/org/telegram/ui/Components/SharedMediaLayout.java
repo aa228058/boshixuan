@@ -4884,7 +4884,7 @@ if (id == TAB_MANGO_ACTIVITY) {
     int id = scrollSlidingTextTabStrip.getCurrentTabId();
     if (!scrollSlidingTextTabStrip.hasTab(id)) {
         id = -1;
-        int[] tabIds = scrollSlidingTextTabStrip.getTabIds();
+        ArrayList<Integer> tabIds = scrollSlidingTextTabStrip.getTabIds();
         for (int tabId : tabIds) {
             // 关键：回退时自动跳过“活动”标签，寻找第一个正常的媒体标签
             if (tabId != TAB_MANGO_ACTIVITY) { 
@@ -11935,9 +11935,9 @@ private void showRealActivityPage() {
     android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
     mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
-    FriendActivityPage.fetch(org.telegram.messenger.UserConfig.selectedAccount, dialog_id, new FriendActivityPage.Callback() {
+    FriendActivityPage activityPage = new FriendActivityPage(org.telegram.messenger.UserConfig.selectedAccount, dialog_id, new FriendActivityPage.Callback() {
         @Override
-        public void onResult(ArrayList<TLRPC.Message> messages) {
+        public void onResult(ArrayList<TLRPC.Message> messages, boolean hasMore) {
             if (mActivityOverlay == null) return;
             mActivityOverlay.removeAllViews();
 
@@ -11952,7 +11952,7 @@ private void showRealActivityPage() {
             android.widget.ListView listView = new android.widget.ListView(getContext());
             listView.setDivider(null);
             listView.setDividerHeight(0);
-            listView.setAdapter(new FriendActivityAdapter(messages));
+            listView.setAdapter(new FriendActivityAdapter(org.telegram.messenger.UserConfig.selectedAccount, messages, null));
             
             listView.setOnItemClickListener((parent, view, position, id) -> {
                 TLRPC.Message msg = messages.get(position);
@@ -11976,5 +11976,6 @@ private void showRealActivityPage() {
             }
         }
     });
+    activityPage.loadFirstPage();
 }
 }
