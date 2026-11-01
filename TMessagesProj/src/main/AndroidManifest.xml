@@ -537,10 +537,10 @@
             android:foregroundServiceType="mediaPlayback"
         />
         <service
-            android:name=".NotificationsService"
-            android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="dataSync"
+    android:name=".NotificationsService"
+    android:enabled="true"
+    android:exported="false"
+    android:foregroundServiceType="remoteMessaging" 
         />
         <service
             android:name=".NotificationRepeat"
