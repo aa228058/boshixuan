@@ -11,7 +11,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 👇 关键1：在编译前强行清理服务器上没用的软件，腾出 20GB+ 空间
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -27,12 +26,8 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # 👇 关键2：去掉了 cache: 'gradle'，不再占用额外空间
-          
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ''
+
+      # 👇 关键：直接移除了 Setup Android SDK 步骤，使用系统自带的 SDK
 
       - name: Generate Keystore
         run: |
