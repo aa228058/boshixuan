@@ -21514,6 +21514,11 @@ public class MessagesController extends BaseController implements NotificationCe
             AutoReactionManager.getInstance(currentAccount).processNewMessages(messages);
             MessageEchoManager.process(currentAccount, messages);
             MangoAutoReadManager.process(currentAccount, messages);
+            // Capture qualifying group replies at the message-ingestion point so
+            // collection continues even when the inbox screen is not open.
+            for (int i = 0; i < messages.size(); i++) {
+                CrossAccountInboxStore.recordReply(currentAccount, dialogId, messages.get(i));
+            }
         }
         getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, messages, scheduled, mode);
 
