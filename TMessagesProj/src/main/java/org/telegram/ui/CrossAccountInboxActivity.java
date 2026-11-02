@@ -841,8 +841,11 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                                 .setPositiveButton(android.R.string.ok, null).show();
                         return;
                     }
+                    // An empty value means "all active accounts", so newly
+                    // added accounts are included automatically.
+                    String savedScope = count == accounts.length ? "" : value.toString();
                     ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
-                            .edit().putString(INBOX_SCOPE_KEY, value.toString()).apply();
+                            .edit().putString(INBOX_SCOPE_KEY, savedScope).apply();
                     if (active && listView != null) listView.adapter.update(true);
                 }).show();
     }
