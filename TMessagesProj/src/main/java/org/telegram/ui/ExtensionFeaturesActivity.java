@@ -1611,7 +1611,7 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                             resume.setTextColor(Theme.getColor(Theme.key_dialogTextLink));
                             resume.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(8));
                             resume.setOnClickListener(v -> {
-                                if (!MangoGroupBroadcastManager.resume(currentAccount, task.id, 5, 15)) {
+                                if (!MangoGroupBroadcastManager.resume(currentAccount, task.id)) {
                                     Toast.makeText(context, "任务无法继续，请检查任务记录", Toast.LENGTH_SHORT).show();
                                 }
                                 this.run();
