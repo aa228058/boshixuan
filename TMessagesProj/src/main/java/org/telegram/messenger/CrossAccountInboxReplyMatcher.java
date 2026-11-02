@@ -18,8 +18,8 @@ public final class CrossAccountInboxReplyMatcher {
     }
 
     public static boolean isReplyToOwnGroupMessage(int account, long dialogId, MessageObject message) {
-        if (message == null || message.messageOwner == null || dialogId >= 0
-                || message.deleted || message.getDialogId() != dialogId) {
+        if (message == null || message.messageOwner == null || message.messageOwner.out
+                || dialogId >= 0 || message.deleted || message.getDialogId() != dialogId) {
             return false;
         }
 
