@@ -1,6 +1,9 @@
 name: Java Compile Test
 
 on:
+  push:
+    branches:
+      - broadcast-ui-build-final-20261102
   workflow_dispatch:
 
 permissions:
@@ -65,3 +68,12 @@ jobs:
           APK="TMessagesProj_App/build/outputs/apk/afat/debug/app.apk"
           test -s "$APK"
           ls -lh "$APK"
+
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Boshixuan-Broadcast-UI-Debug-APK
+          path: TMessagesProj_App/build/outputs/apk/afat/debug/app.apk
+          if-no-files-found: error
+          retention-days: 7
