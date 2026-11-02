@@ -153,12 +153,14 @@ public class FriendActivityPage {
         final int[] activeCount = {0};
         final int[] completedCount = {0};
         final boolean[] addedNew = {false};
-        dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew);
+        final boolean[] partialResultSent = {false};
+        dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew, partialResultSent);
     }
 
     // All callbacks are marshalled onto the UI thread, so these counters are serialized.
     private void dispatchChatSearches(ArrayList<Long> pendingChats, int[] nextIndex,
-                                      int[] activeCount, int[] completedCount, boolean[] addedNew) {
+                                      int[] activeCount, int[] completedCount, boolean[] addedNew,
+                                      boolean[] partialResultSent) {
         while (activeCount[0] < MAX_CONCURRENT_CHAT_REQUESTS && nextIndex[0] < pendingChats.size()) {
             long chatId = pendingChats.get(nextIndex[0]++);
             activeCount[0]++;
@@ -221,12 +223,21 @@ public class FriendActivityPage {
                             }
                         }
 
+                        // Show the first useful batch as soon as one group returns.
+                        // Other group searches continue in the background; the final callback
+                        // will refresh the list with the complete, sorted result set.
+                        if (addedNew[0] && !partialResultSent[0]) {
+                            partialResultSent[0] = true;
+                            sortMessages();
+                            callback.onResult(new ArrayList<>(allMessages), true);
+                        }
+
                         activeCount[0]--;
                         completedCount[0]++;
                         if (completedCount[0] >= pendingChats.size()) {
                             finishPage(addedNew[0]);
                         } else {
-                            dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew);
+                            dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew, partialResultSent);
                         }
                     }));
         }
@@ -236,26 +247,30 @@ public class FriendActivityPage {
         }
     }
 
+    private void sortMessages() {
+        Collections.sort(allMessages, (m1, m2) -> {
+            TLRPC.Chat chat1 = MessagesController.getInstance(currentAccount).getChat(-m1.dialog_id);
+            TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(-m2.dialog_id);
+            String title1 = chat1 != null && chat1.title != null ? chat1.title : "";
+            String title2 = chat2 != null && chat2.title != null ? chat2.title : "";
+            int groupCompare = title1.compareToIgnoreCase(title2);
+            if (groupCompare != 0) {
+                return groupCompare;
+            }
+            // Titles are not unique; use the dialog id as a stable group key
+            // so messages from different groups never interleave.
+            int dialogCompare = Long.compare(m1.dialog_id, m2.dialog_id);
+            if (dialogCompare != 0) {
+                return dialogCompare;
+            }
+            int dateCompare = Integer.compare(m2.date, m1.date);
+            return dateCompare != 0 ? dateCompare : Integer.compare(m2.id, m1.id);
+        });
+    }
+
     private void finishPage(boolean addedNew) {
         if (addedNew) {
-            Collections.sort(allMessages, (m1, m2) -> {
-                TLRPC.Chat chat1 = MessagesController.getInstance(currentAccount).getChat(-m1.dialog_id);
-                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(-m2.dialog_id);
-                String title1 = chat1 != null && chat1.title != null ? chat1.title : "";
-                String title2 = chat2 != null && chat2.title != null ? chat2.title : "";
-                int groupCompare = title1.compareToIgnoreCase(title2);
-                if (groupCompare != 0) {
-                    return groupCompare;
-                }
-                // Titles are not unique; use the dialog id as a stable group key
-                // so messages from different groups never interleave.
-                int dialogCompare = Long.compare(m1.dialog_id, m2.dialog_id);
-                if (dialogCompare != 0) {
-                    return dialogCompare;
-                }
-                int dateCompare = Integer.compare(m2.date, m1.date);
-                return dateCompare != 0 ? dateCompare : Integer.compare(m2.id, m1.id);
-            });
+            sortMessages();
         }
         boolean hasMore = !commonChatsEndReached;
         if (!hasMore) {
