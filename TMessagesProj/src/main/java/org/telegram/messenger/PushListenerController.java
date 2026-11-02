@@ -1717,10 +1717,15 @@ public class PushListenerController {
                                 String token = task.getResult();
                                 if (!TextUtils.isEmpty(token)) {
                                     PushListenerController.sendRegistrationToServer(getPushType(), token);
+                                } else {
+                                    SharedConfig.pushStringStatus = "__FIREBASE_FAILED__";
+                                    PushListenerController.sendRegistrationToServer(getPushType(), null);
                                 }
                             });
                 } catch (Throwable e) {
                     FileLog.e(e);
+                    SharedConfig.pushStringStatus = "__FIREBASE_FAILED__";
+                    PushListenerController.sendRegistrationToServer(getPushType(), null);
                 }
             });
         }
