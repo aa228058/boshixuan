@@ -180,6 +180,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             center.addObserver(this, NotificationCenter.dialogsNeedReload);
             center.addObserver(this, NotificationCenter.updateInterfaces);
             center.addObserver(this, NotificationCenter.didReceiveNewMessages);
+            center.addObserver(this, NotificationCenter.crossAccountInboxUpdated);
             center.addObserver(this, NotificationCenter.messagesDeleted);
             center.addObserver(this, NotificationCenter.notificationsCountUpdated);
             center.addObserver(this, NotificationCenter.appDidLogout);
@@ -198,6 +199,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             center.removeObserver(this, NotificationCenter.dialogsNeedReload);
             center.removeObserver(this, NotificationCenter.updateInterfaces);
             center.removeObserver(this, NotificationCenter.didReceiveNewMessages);
+            center.removeObserver(this, NotificationCenter.crossAccountInboxUpdated);
             center.removeObserver(this, NotificationCenter.messagesDeleted);
             center.removeObserver(this, NotificationCenter.notificationsCountUpdated);
             center.removeObserver(this, NotificationCenter.appDidLogout);
@@ -219,6 +221,11 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         super.onFragmentDestroy();
     }
     @Override public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.crossAccountInboxUpdated) {
+            // Store writes are serialized; this event is emitted only after persistence.
+            if (replyInbox) queueRefresh();
+            return;
+        }
         if (id == NotificationCenter.didReceiveNewMessages) {
             // The reply inbox is backed by CrossAccountInboxStore, not the dialog-row
             // snapshot. Rebuild it after the store's queued write has had time to run;
