@@ -74,7 +74,22 @@ public final class MangoGroupBroadcastTaskStore {
             ArrayList<String> names = targetNames == null ? new ArrayList<>() : new ArrayList<>(targetNames);
             ArrayList<Long> ids = targetIds == null ? new ArrayList<>() : new ArrayList<>(targetIds);
             tasks.add(0, new Task(id, System.currentTimeMillis(), message, ids.size(), 0, 0, 0, SENDING, names, ids, new ArrayList<>(), minSeconds, maxSeconds));
-            while (tasks.size() > MAX_HISTORY) tasks.remove(tasks.size() - 1);
+            // Keep active tasks even when the history limit is reached. Only prune
+            // the oldest inactive records; otherwise a running task could vanish
+            // from storage and its runner would stop on the next tick.
+            while (tasks.size() > MAX_HISTORY) {
+                int pruneIndex = -1;
+                for (int i = tasks.size() - 1; i >= 0; i--) {
+                    Task candidate = tasks.get(i);
+                    if (!activeTasks.contains(activeKey(account, candidate.id))
+                            && candidate.state != SENDING) {
+                        pruneIndex = i;
+                        break;
+                    }
+                }
+                if (pruneIndex < 0) break;
+                tasks.remove(pruneIndex);
+            }
             activeTasks.add(activeKey(account, id));
             write(account, tasks);
             return id;
@@ -169,7 +184,7 @@ public final class MangoGroupBroadcastTaskStore {
         ArrayList<Task> tasks = new ArrayList<>();
         try {
             JSONArray array = new JSONArray(preferences(account).getString("tasks", "[]"));
-            for (int i = 0; i < array.length() && i < MAX_HISTORY; i++) {
+            for (int i = 0; i < array.length(); i++) {
                 JSONObject item = array.optJSONObject(i);
                 if (item == null) continue;
                 ArrayList<String> names = new ArrayList<>();
