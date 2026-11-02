@@ -626,19 +626,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     private static final int ACCOUNT_ACTION_ROW_HEIGHT_DP = 50;
     private static final int ITEM_ID_EXTENSION_FEATURES = 25;
     private static final int ITEM_ID_ADD_ACCOUNT = 26;
-    private static final int ITEM_ID_TOGGLE_ACCOUNTS = 27;
     private static final int ITEM_ID_DEVICE_INFO = 28;
 
     private ArrayList<Integer> accountNumbers = new ArrayList<>();
-    private boolean accountsExpanded;
     private AccountSectionView accountSectionView;
-
-    private void toggleAccountsExpanded() {
-        accountsExpanded = !accountsExpanded;
-        if (listView != null) {
-            listView.adapter.update(true);
-        }
-    }
 
     private AccountSectionView getAccountSectionView() {
         if (accountSectionView == null && getContext() != null) {
@@ -717,7 +708,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         if (accountNumbers.size() > 0 || canAddAccount) {
             AccountSectionView accountSectionView = getAccountSectionView();
             if (accountSectionView != null) {
-                accountSectionView.setAccounts(accountNumbers, accountsExpanded, canAddAccount);
+                accountSectionView.setAccounts(accountNumbers, canAddAccount);
                 items.add(UItem.asFullyCustom(accountSectionView));
             }
             items.add(UItem.asShadow(null));
@@ -947,7 +938,6 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         private final UniversalRecyclerView accountsListView;
         private final ArrayList<Integer> accounts = new ArrayList<>();
         private boolean canAddAccount;
-        private boolean showAccounts;
 
         public AccountSectionView(Context context, Theme.ResourcesProvider resourcesProvider) {
             super(context);
@@ -984,16 +974,11 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         private void fillAccountItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-            if (showAccounts) {
-                for (int i = 0; i < accounts.size(); ++i) {
-                    items.add(AccountCell.Factory.of(i, accounts.get(i)));
-                }
+            for (int i = 0; i < accounts.size(); ++i) {
+                items.add(AccountCell.Factory.of(i, accounts.get(i)));
             }
             if (canAddAccount) {
                 items.add(UItem.asButton(ITEM_ID_ADD_ACCOUNT, "+ " + getString(R.string.AddAccount)).accent());
-            }
-            if (!accounts.isEmpty()) {
-                items.add(UItem.asButton(ITEM_ID_TOGGLE_ACCOUNTS, getString(showAccounts ? R.string.SettingsAccountsCollapse : R.string.SettingsAccountsExpand)).accent());
             }
         }
 
@@ -1003,26 +988,23 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 if (availableAccount != null && availableAccount != -1) {
                     presentFragment(new LoginActivity(availableAccount));
                 }
-            } else if (item.id == ITEM_ID_TOGGLE_ACCOUNTS) {
-                toggleAccountsExpanded();
             } else if (LaunchActivity.instance != null) {
                 LaunchActivity.instance.switchToAccount(item.intValue, true);
             }
         }
 
-        public void setAccounts(ArrayList<Integer> accountNumbers, boolean expanded, boolean canAddAccount) {
+        public void setAccounts(ArrayList<Integer> accountNumbers, boolean canAddAccount) {
             accounts.clear();
             accounts.addAll(accountNumbers);
             this.canAddAccount = canAddAccount;
-            this.showAccounts = expanded;
 
             headerView.setText(getString(R.string.SettingsAccounts));
 
             accountsListView.adapter.update(true);
 
             FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) accountsListView.getLayoutParams();
-            int actionRows = (canAddAccount ? 1 : 0) + (!accounts.isEmpty() ? 1 : 0);
-            int contentHeight = (showAccounts ? accounts.size() * ACCOUNT_ROW_HEIGHT_DP : 0) + actionRows * ACCOUNT_ACTION_ROW_HEIGHT_DP;
+            int actionRows = canAddAccount ? 1 : 0;
+            int contentHeight = accounts.size() * ACCOUNT_ROW_HEIGHT_DP + actionRows * ACCOUNT_ACTION_ROW_HEIGHT_DP;
             layoutParams.height = dp(contentHeight);
             accountsListView.setLayoutParams(layoutParams);
             accountsListView.setVisibility(contentHeight > 0 ? VISIBLE : GONE);
