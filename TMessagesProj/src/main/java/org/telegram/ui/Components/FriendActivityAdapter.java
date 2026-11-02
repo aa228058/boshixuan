@@ -5,10 +5,11 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLoader;
@@ -28,7 +29,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 
-public class FriendActivityAdapter extends BaseAdapter {
+public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     private final int currentAccount;
     private final ArrayList<TLRPC.Message> messages = new ArrayList<>();
@@ -80,30 +81,30 @@ public class FriendActivityAdapter extends BaseAdapter {
     }
 
     @Override
-    public int getCount() {
+    public int getItemCount() {
         return groups.size();
     }
 
     @Override
-    public Object getItem(int position) {
-        return groups.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-        return groups.get(position).dialogId;
-    }
-
-    @Override
-    public boolean isEnabled(int position) {
+    public boolean isEnabled(RecyclerView.ViewHolder holder) {
         return false;
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        GroupItem group = groups.get(position);
-        android.content.Context context = parent.getContext();
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        return new RecyclerListView.Holder(new FrameLayout(parent.getContext()));
+    }
 
+    @Override
+    public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        GroupItem group = groups.get(position);
+        FrameLayout container = (FrameLayout) holder.itemView;
+        container.removeAllViews();
+        container.addView(createGroupView(group, container.getContext()),
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    }
+
+    private View createGroupView(GroupItem group, android.content.Context context) {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(10),
