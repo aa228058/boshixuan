@@ -1350,12 +1350,18 @@ public class ExtensionFeaturesActivity extends BaseFragment {
             refresh.run();
         });
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(context).setTitle("选择群组").setView(content)
-                .setPositiveButton(getString(R.string.OK), (d, which) -> {
-                    ArrayList<Long> selected = new ArrayList<>();
-                    for (int i = 0; i < checks.size(); i++) if (checks.get(i).isChecked()) selected.add(ids.get(i));
-                    if (selected.isEmpty()) { Toast.makeText(context, "请至少选择一个群组", Toast.LENGTH_SHORT).show(); return; }
-                    showIntervalInputDialog(text, selected);
-                }).setNegativeButton(getString(R.string.Cancel), null).create();
+                .setPositiveButton(getString(R.string.OK), null)
+                .setNegativeButton(getString(R.string.Cancel), null).create();
+        dialog.setOnShowListener(d -> dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            ArrayList<Long> selected = new ArrayList<>();
+            for (int i = 0; i < checks.size(); i++) if (checks.get(i).isChecked()) selected.add(ids.get(i));
+            if (selected.isEmpty()) {
+                Toast.makeText(context, "请至少选择一个群组", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            dialog.dismiss();
+            showIntervalInputDialog(text, selected);
+        }));
         dialog.show();
     }
 
