@@ -38,6 +38,19 @@ jobs:
       - name: Configure Android SDK
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
+      - name: Configure temporary debug signing
+        run: |
+          set -euo pipefail
+          mkdir -p TMessagesProj/config
+          keytool -genkeypair -noprompt \
+            -keystore TMessagesProj/config/release.keystore \
+            -storepass android \
+            -keypass android \
+            -alias androidkey \
+            -dname "CN=Boshixuan CI Debug, OU=Build Validation, O=Boshixuan, C=US" \
+            -keyalg RSA -keysize 2048 -validity 10000
+          test -s TMessagesProj/config/release.keystore
+
       - name: Compile universal debug APK
         run: |
           set -euo pipefail
