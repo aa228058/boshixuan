@@ -1371,8 +1371,6 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
 
         for (int i = 0, size = targetGroups.size(); i < size; i++) {
             final long dialogId = targetGroups.get(i);
-            // 👇 核心：生成随机 ID，Mango 底层必须要有这个才肯发！
-            final long randomId = org.telegram.messenger.Utilities.random.nextLong();
             
             long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L);
             currentDelay += randomDelay;
