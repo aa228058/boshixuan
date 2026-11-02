@@ -9,7 +9,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Android-brightgreen)
 ![Version](https://img.shields.io/badge/Version-4.9%20(7009)-orange)
 
-[简体中文](#-简体中文) · [English](#-english) · [源码 / Source](https://github.com/2492866096/Mango) · [版本发布 / Releases](https://github.com/2492866096/Mango/releases) · [官方频道 / Official Channel](https://t.me/hhhhp) · [修改建议 / Bug 反馈](https://t.me/zsq888)
+[简体中文](#-简体中文) · [English](#-english) · [源码 / Source](https://github.com/aa228058/boshixuan) · [版本发布 / Releases](https://github.com/aa228058/boshixuan/releases) · [官方频道 / Official Channel](https://t.me/hhhhp) · [修改建议 / Bug 反馈](https://t.me/zsq888)
 
 </div>
 
@@ -38,9 +38,9 @@
 ### 📦 下载与版本
 
 - **当前源码版本：** `4.9 (7009)`
-- **Android 包名：** `app.mango.im`
-- **源码：** [GitHub · Mango](https://github.com/2492866096/Mango)
-- **APK / 版本更新：** [GitHub Releases](https://github.com/2492866096/Mango/releases)
+- **Android 包名：** `com.boshixuan.im`
+- **源码：** [GitHub · Mango](https://github.com/aa228058/boshixuan)
+- **APK / 版本更新：** [GitHub Releases](https://github.com/aa228058/boshixuan/releases)
 
 > Releases 页面中的安装包需要由项目维护者单独发布；仓库公开源码不代表已经发布 APK。请优先从可信的项目发布渠道获取安装包，并核对版本及签名信息。
 
@@ -96,8 +96,8 @@ Release 构建还需要你自己的签名文件与相应 Gradle 配置。仓库�
 - 📢 **官方频道：** [芒果客户端官方频道](https://t.me/hhhhp)
 - 🐛 **修改建议 / Bug 反馈：** [@zsq888](https://t.me/zsq888)
 - 💬 **交流群：** [Telegram 交流群](https://t.me/AKUOD)
-- [GitHub Issues：公开问题追踪](https://github.com/2492866096/Mango/issues)
-- [Pull Requests：提交代码改进](https://github.com/2492866096/Mango/pulls)
+- [GitHub Issues：公开问题追踪](https://github.com/aa228058/boshixuan/issues)
+- [Pull Requests：提交代码改进](https://github.com/aa228058/boshixuan/pulls)
 
 提交问题前请先检查是否已有相同反馈，并尽量提供系统版本、客户端版本、复现步骤及已脱敏的日志。
 
@@ -126,9 +126,9 @@ Availability varies by release, Android version, server-side behavior, and user 
 ### 📦 Download & Versions
 
 - **Source version:** `4.9 (7009)`
-- **Android application ID:** `app.mango.im`
-- **Source code:** [GitHub repository](https://github.com/2492866096/Mango)
-- **APK releases:** [GitHub Releases](https://github.com/2492866096/Mango/releases)
+- **Android application ID:** `com.boshixuan.im`
+- **Source code:** [GitHub repository](https://github.com/aa228058/boshixuan)
+- **APK releases:** [GitHub Releases](https://github.com/aa228058/boshixuan/releases)
 
 > APK files are published separately by the maintainers. An open-source repository does not necessarily contain downloadable release binaries.
 
@@ -171,8 +171,8 @@ Bug reports, improvement suggestions, and pull requests are welcome:
 - 📢 **Official channel:** [Mango Client](https://t.me/hhhhp)
 - 🐛 **Suggestions & Bug Reports:** [@zsq888](https://t.me/zsq888)
 - 💬 **Discussion group:** [Telegram community](https://t.me/AKUOD)
-- [GitHub Issues](https://github.com/2492866096/Mango/issues)
-- [Pull Requests](https://github.com/2492866096/Mango/pulls)
+- [GitHub Issues](https://github.com/aa228058/boshixuan/issues)
+- [Pull Requests](https://github.com/aa228058/boshixuan/pulls)
 
 Please include a clear reproduction procedure and redact any private data before sharing logs.
 
