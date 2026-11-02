@@ -1636,6 +1636,7 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                         card.addView(actions, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 0));
                     }
 
+                    if (!task.logs.isEmpty()) { TextView recentLog = new TextView(context); recentLog.setTextSize(11); recentLog.setTextColor(Theme.getColor(Theme.key_dialogTextHint)); recentLog.setText("最近记录：" + task.logs.get(0)); card.addView(recentLog, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 0)); }
                     if (!task.targetNames.isEmpty()) {
                         TextView targets = new TextView(context);
                         targets.setTextSize(12);
