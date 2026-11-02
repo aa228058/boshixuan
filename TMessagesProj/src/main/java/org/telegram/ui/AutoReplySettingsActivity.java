@@ -209,15 +209,24 @@ public class AutoReplySettingsActivity extends BaseFragment implements Notificat
         builder.setMessage(getString(R.string.AutoReplyEditRuleInfo));
         builder.setView(container);
         builder.setPositiveButton(getString(R.string.Save), (dialog, which) -> {
-            String keyword = keywordEditText.getText().toString();
+            String keyword = keywordEditText.getText().toString().trim();
+            if (TextUtils.isEmpty(keyword)) {
+                showRuleInputError("关键词不能为空，原规则及其快捷回复不会被删除。");
+                return;
+            }
             if (existingRule == null) {
                 AutoReplyManager.Rule rule = getAutoReplyManager().addRule(keyword);
-                refreshList();
-                if (rule != null) {
-                    openQuickReplyEditor(rule);
+                if (rule == null) {
+                    showRuleInputError("添加失败：该关键词可能已经存在，请更换关键词。");
+                    return;
                 }
+                refreshList();
+                openQuickReplyEditor(rule);
             } else {
-                getAutoReplyManager().updateRuleKeyword(existingRule.id, keyword);
+                if (!getAutoReplyManager().updateRuleKeyword(existingRule.id, keyword)) {
+                    showRuleInputError("修改失败：该关键词可能已被其他规则使用，请更换关键词。");
+                    return;
+                }
                 refreshList();
             }
         });
@@ -235,6 +244,18 @@ public class AutoReplySettingsActivity extends BaseFragment implements Notificat
             keywordEditText.requestFocus();
             AndroidUtilities.showKeyboard(keywordEditText);
         }, 120);
+    }
+
+    private void showRuleInputError(String message) {
+        Context context = getParentActivity();
+        if (context == null) {
+            return;
+        }
+        new AlertDialog.Builder(context, resourceProvider)
+                .setTitle("提示")
+                .setMessage(message)
+                .setPositiveButton(getString(R.string.OK), null)
+                .show();
     }
 
     private EditTextBoldCursor createEditText(Context context) {
