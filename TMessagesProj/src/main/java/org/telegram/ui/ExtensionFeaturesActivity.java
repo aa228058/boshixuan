@@ -1500,6 +1500,8 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
         Runnable refresh = new Runnable() {
             @Override public void run() {
                 if (!dialog.isShowing()) return;
+                // Preserve the user's position while the live task cards refresh.
+                int previousScrollY = scroll.getScrollY();
                 list.removeAllViews();
                 ArrayList<MangoGroupBroadcastTaskStore.Task> tasks = MangoGroupBroadcastTaskStore.getTasks(currentAccount);
                 if (tasks.isEmpty()) {
@@ -1573,6 +1575,7 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     }
                     list.addView(card, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 10));
                 }
+                scroll.post(() -> scroll.scrollTo(0, previousScrollY));
                 if (dialog.isShowing()) AndroidUtilities.runOnUIThread(this, 1000);
             }
         };
