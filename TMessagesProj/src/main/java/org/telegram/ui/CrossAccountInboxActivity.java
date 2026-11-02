@@ -906,7 +906,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     // fail at the network layer. Do not mark the inbox entry handled
                     // merely because the send request was submitted.
                     new AlertDialog.Builder(getParentActivity())
-                            .setMessage("回复已提交发送。请确认群组中发送成功后，再将这条收件箱消息标记为已处理。")
+                            .setMessage("已进入发送流程。如出现发送确认提示，请完成确认；请确认群组中确实发送成功后，再将这条收件箱消息标记为已处理。")
                             .setPositiveButton("知道了", null).show();
                 }).show();
     }
