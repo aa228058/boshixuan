@@ -31,6 +31,7 @@ import org.telegram.ui.Components.LayoutHelper;
 public final class MangoUserBroadcastActivity extends BaseFragment {
     private EditTextBoldCursor editor;
     private TextView status, send, cancel;
+    private LinearLayout statusCard;
     private MangoBroadcastTargets loader;
     private long owner;
     private boolean destroyed, resumed;
@@ -58,19 +59,38 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         });
         ScrollView scroll = new ScrollView(context);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
         scroll.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+
         LinearLayout content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(20), AndroidUtilities.dp(20), AndroidUtilities.dp(24));
-        scroll.addView(content);
-        TextView info = label(context, 14, Theme.key_windowBackgroundWhiteGrayText);
+        content.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(16), AndroidUtilities.dp(16), AndroidUtilities.dp(28));
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+
+        LinearLayout infoCard = new LinearLayout(context);
+        infoCard.setOrientation(LinearLayout.VERTICAL);
+        infoCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(14), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
+        infoCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), getThemedColor(Theme.key_windowBackgroundWhite)));
+        TextView infoTitle = label(context, 15, Theme.key_windowBackgroundWhiteBlueHeader);
+        infoTitle.setTypeface(AndroidUtilities.bold());
+        infoTitle.setText(getString(R.string.MangoBroadcastTitle));
+        infoCard.addView(infoTitle, LayoutHelper.createLinear(-1, -2));
+        TextView info = label(context, 13, Theme.key_windowBackgroundWhiteGrayText);
         info.setText(getString(R.string.MangoBroadcastInfo));
-        content.addView(info, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 16));
-        TextView header = label(context, 15, Theme.key_windowBackgroundWhiteBlueHeader);
+        info.setLineSpacing(AndroidUtilities.dp(2), 1f);
+        infoCard.addView(info, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+        content.addView(infoCard, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 16));
+
+        LinearLayout editorCard = new LinearLayout(context);
+        editorCard.setOrientation(LinearLayout.VERTICAL);
+        editorCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(14), AndroidUtilities.dp(16), AndroidUtilities.dp(12));
+        editorCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), getThemedColor(Theme.key_windowBackgroundWhite)));
+        TextView header = label(context, 15, Theme.key_windowBackgroundWhiteBlackText);
+        header.setTypeface(AndroidUtilities.bold());
         header.setText(getString(R.string.MangoBroadcastMessage));
-        content.addView(header, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 8));
+        editorCard.addView(header, LayoutHelper.createLinear(-1, -2));
         editor = new EditTextBoldCursor(context);
-        editor.setTextSize(17);
+        editor.setTextSize(16);
         editor.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         editor.setHintTextColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
         editor.setHint(getString(R.string.BroadcastToGroupsHint));
@@ -79,14 +99,24 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         editor.setMinLines(5);
         editor.setMaxLines(12);
         editor.setFilters(new InputFilter[]{new InputFilter.LengthFilter(Math.max(1, Math.min(4096, getMessagesController().maxMessageLength)))});
-        editor.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
-        editor.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), getThemedColor(Theme.key_windowBackgroundWhite)));
+        editor.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(12), AndroidUtilities.dp(12), AndroidUtilities.dp(12));
+        editor.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), getThemedColor(Theme.key_windowBackgroundGray)));
         editor.setText(draft);
-        content.addView(editor, LayoutHelper.createLinear(-1, -2));
-        status = label(context, 14, Theme.key_windowBackgroundWhiteGrayText);
-        content.addView(status, LayoutHelper.createLinear(-1, -2, 0, 16, 0, 16));
+        editorCard.addView(editor, LayoutHelper.createLinear(-1, -2, 0, 12, 0, 0));
+        content.addView(editorCard, LayoutHelper.createLinear(-1, -2));
+
+        statusCard = new LinearLayout(context);
+        statusCard.setOrientation(LinearLayout.VERTICAL);
+        statusCard.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
+        statusCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), getThemedColor(Theme.key_windowBackgroundWhite)));
+        status = label(context, 13, Theme.key_windowBackgroundWhiteGrayText);
+        status.setLineSpacing(AndroidUtilities.dp(2), 1f);
+        statusCard.addView(status, LayoutHelper.createLinear(-1, -2));
+        content.addView(statusCard, LayoutHelper.createLinear(-1, -2, 0, 14, 0, 0));
+        statusCard.setVisibility(View.GONE);
+
         send = button(context, false);
-        content.addView(send, LayoutHelper.createLinear(-1, 50));
+        content.addView(send, LayoutHelper.createLinear(-1, 52, 0, 18, 0, 0));
         send.setOnClickListener(v -> review());
         cancel = button(context, true);
         cancel.setText(getString(R.string.Cancel));
@@ -130,7 +160,7 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
                 : manager.isRunning() && !DailyMessageTasksManager.isConnected(currentAccount) ? R.string.MangoBroadcastWaiting : 0;
         if (message != 0) text += "\n" + getString(message);
         status.setText(text.trim());
-        status.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+        statusCard.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
         boolean busy = loader != null || manager.isRunning();
         send.setText(getString(loader != null ? R.string.Loading : state == MangoUserBroadcastManager.PAUSED
                 ? R.string.MangoBroadcastResume : R.string.MangoBroadcastLoad));
