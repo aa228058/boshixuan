@@ -1283,15 +1283,24 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         composerScroll.addView(container);
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
         builder.setTitle(getString(R.string.BroadcastToGroupsTitle)).setView(composerScroll);
-        builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-            String message = SendMessagesHelper.getTrimmedString(editText.getText().toString());
-            if (TextUtils.isEmpty(message)) { Toast.makeText(context, getString(R.string.BroadcastToGroupsEmptyText), Toast.LENGTH_SHORT).show(); return; }
-            ArrayList<Long> groups = getBroadcastTargetGroups();
-            if (groups.isEmpty()) { Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show(); return; }
-            showBroadcastToGroupsConfirm(message, groups);
-        });
+        builder.setPositiveButton(getString(R.string.OK), null);
         builder.setNegativeButton(getString(R.string.Cancel), null);
-        showDialog(builder.create());
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String message = SendMessagesHelper.getTrimmedString(editText.getText().toString());
+            if (TextUtils.isEmpty(message)) {
+                Toast.makeText(context, getString(R.string.BroadcastToGroupsEmptyText), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ArrayList<Long> groups = getBroadcastTargetGroups();
+            if (groups.isEmpty()) {
+                Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            dialog.dismiss();
+            showBroadcastToGroupsConfirm(message, groups);
+        }));
+        showDialog(dialog);
         AndroidUtilities.runOnUIThread(() -> { editText.requestFocus(); AndroidUtilities.showKeyboard(editText); }, 120);
     }
 
