@@ -116,7 +116,7 @@ public final class MangoUserBroadcastManager {
         cursor = skipped = 0; state = RUNNING; dueAt = SystemClock.elapsedRealtime();
         generation++; loadingUser = false; missingUser = 0;
         if (persist()) return true;
-        state = IDLE; targets.clear(); text = ""; return false;
+        state = IDLE; targets.clear(); text = ""; taskCreatedAt = 0; taskMessage = ""; return false;
     }
     public boolean resume() {
         ensureLoaded();
