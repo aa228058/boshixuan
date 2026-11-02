@@ -12081,16 +12081,20 @@ private void showRealActivityPage(boolean display) {
     mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
     final int currentAccount = profileActivity.getCurrentAccount();
+    // Bind this request to the profile identity that started it. A reused layout
+    // must never display results fetched for a different user dialog.
+    final long activityTargetDialogId = dialog_id;
     final FriendActivityPage[] pageHolder = new FriendActivityPage[1];
     final FriendActivityAdapter[] adapterHolder = new FriendActivityAdapter[1];
     final RecyclerListView[] listHolder = new RecyclerListView[1];
     final android.widget.TextView[] emptyViewHolder = new android.widget.TextView[1];
     final boolean[] hasMoreHolder = new boolean[]{false};
 
-    pageHolder[0] = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
+    pageHolder[0] = new FriendActivityPage(currentAccount, activityTargetDialogId, new FriendActivityPage.Callback() {
         @Override
         public void onResult(ArrayList<TLRPC.Message> messages, boolean hasMore) {
-            if (requestGeneration != mActivityRequestGeneration || mActivityOverlay == null || getContext() == null) return;
+            if (requestGeneration != mActivityRequestGeneration || dialog_id != activityTargetDialogId
+                    || mActivityOverlay == null || getContext() == null) return;
             hasMoreHolder[0] = hasMore;
 
             if (listHolder[0] == null) {
@@ -12240,7 +12244,8 @@ private void showRealActivityPage(boolean display) {
 
         @Override
         public void onError(String error) {
-            if (requestGeneration == mActivityRequestGeneration && mActivityOverlay != null && getContext() != null) {
+            if (requestGeneration == mActivityRequestGeneration && dialog_id == activityTargetDialogId
+                    && mActivityOverlay != null && getContext() != null) {
                 mActivityLoadStarted = false;
                 mActivityListView = null;
                 mActivityOverlay.removeAllViews();
