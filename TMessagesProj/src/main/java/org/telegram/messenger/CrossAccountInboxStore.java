@@ -162,7 +162,7 @@ public final class CrossAccountInboxStore {
             }
             prefs.edit().putString(KEY_MESSAGES, updated.toString()).apply();
             // Notify inbox screens only after the queued preference write is complete.
-            NotificationCenter.getInstance(account).postNotificationName(
+            NotificationCenter.getInstance(account).postNotificationNameOnUIThread(
                     NotificationCenter.crossAccountInboxUpdated);
         } catch (Exception e) {
             FileLog.e(e);
