@@ -152,6 +152,7 @@ import org.telegram.messenger.ChannelBoostsController;
 import org.telegram.messenger.ChatMessageSharedResources;
 import org.telegram.messenger.ChatMessagesMetadataController;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.CrossAccountInboxStore;
 import org.telegram.messenger.ChatThemeController;
 import org.telegram.messenger.CodeHighlighting;
 import org.telegram.messenger.ContactsController;
@@ -20965,6 +20966,12 @@ chatAdapter.filteredMessages.add(msg);
 
             loadsCount++;
             long did = (Long) args[0];
+            // Capture regular group-history replies after Telegram has delivered the
+            // resolved page. Exact reply targets may be in this same page or cache.
+            if (mode == MODE_DEFAULT && chatMode == MODE_DEFAULT && did == dialog_id
+                    && did < 0 && currentEncryptedChat == null) {
+                CrossAccountInboxStore.recordRepliesFromHistory(currentAccount, did, messArr);
+            }
             int loadIndex = did == dialog_id ? 0 : 1;
             int count = (Integer) args[1];
             int fnid = (Integer) args[4];
