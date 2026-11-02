@@ -115,6 +115,26 @@ public final class CrossAccountInboxStore {
         JSONArray old = readArray(prefs);
         JSONArray updated = new JSONArray();
         try {
+            boolean wasHandled = false;
+            int kept = 0;
+            for (int i = 0; i < old.length(); i++) {
+                JSONObject existing = old.optJSONObject(i);
+                if (existing == null) {
+                    continue;
+                }
+                if (existing.optLong("dialog_id") == dialogId
+                        && existing.optInt("message_id") == messageId) {
+                    // Message updates and history reloads may revisit an already
+                    // collected item. Preserve the user's processing state.
+                    wasHandled = existing.optBoolean("handled", false);
+                    continue;
+                }
+                if (kept < MAX_MESSAGES_PER_ACCOUNT - 1) {
+                    updated.put(existing);
+                    kept++;
+                }
+            }
+
             JSONObject record = new JSONObject();
             record.put("dialog_id", dialogId);
             record.put("message_id", messageId);
@@ -124,22 +144,14 @@ public final class CrossAccountInboxStore {
             record.put("group_title", groupTitle);
             record.put("sender_name", senderName);
             record.put("preview", preview);
-            record.put("handled", false);
-            updated.put(record);
-
-            int kept = 0;
-            for (int i = 0; i < old.length() && kept < MAX_MESSAGES_PER_ACCOUNT - 1; i++) {
-                JSONObject existing = old.optJSONObject(i);
-                if (existing == null) {
-                    continue;
-                }
-                if (existing.optLong("dialog_id") == dialogId
-                        && existing.optInt("message_id") == messageId) {
-                    continue;
-                }
-                updated.put(existing);
-                kept++;
+            record.put("handled", wasHandled);
+            // Keep newest messages at the top of the persisted snapshot.
+            JSONArray reordered = new JSONArray();
+            reordered.put(record);
+            for (int i = 0; i < updated.length(); i++) {
+                reordered.put(updated.optJSONObject(i));
             }
+            updated = reordered;
             prefs.edit().putString(KEY_MESSAGES, updated.toString()).apply();
         } catch (Exception e) {
             FileLog.e(e);
