@@ -142,6 +142,7 @@ public final class MangoUserBroadcastManager {
             manager.missingUser = 0;
             manager.owner = Long.MIN_VALUE;
             manager.targets.clear();
+            manager.history.clear(); manager.taskCreatedAt = 0; manager.taskMessage = "";
             manager.cursor = manager.skipped = 0;
             manager.text = "";
             manager.state = IDLE;
