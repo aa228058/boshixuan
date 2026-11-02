@@ -12194,15 +12194,23 @@ private void showRealActivityPage(boolean display) {
                 final LinearLayoutManager layoutManager = (LinearLayoutManager) listHolder[0].getLayoutManager();
                 final int anchorPosition = layoutManager == null ? RecyclerView.NO_POSITION
                         : layoutManager.findFirstVisibleItemPosition();
+                final long anchorDialogId = anchorPosition == RecyclerView.NO_POSITION
+                        ? 0 : adapterHolder[0].getGroupDialogIdAtPosition(anchorPosition);
                 final android.view.View anchorView = anchorPosition == RecyclerView.NO_POSITION
                         ? null : layoutManager.findViewByPosition(anchorPosition);
                 final int anchorTop = anchorView == null ? 0 : anchorView.getTop();
                 adapterHolder[0].setMessages(messages == null ? new ArrayList<>() : messages);
                 if (layoutManager != null && anchorPosition != RecyclerView.NO_POSITION) {
                     listHolder[0].post(() -> {
-                        if (listHolder[0] != null && listHolder[0].getAdapter() == adapterHolder[0]
-                                && adapterHolder[0].getItemCount() > anchorPosition) {
-                            layoutManager.scrollToPositionWithOffset(anchorPosition, anchorTop);
+                        if (listHolder[0] != null && listHolder[0].getAdapter() == adapterHolder[0]) {
+                            int restoredPosition = adapterHolder[0].findGroupPosition(anchorDialogId);
+                            if (restoredPosition == RecyclerView.NO_POSITION
+                                    && adapterHolder[0].getItemCount() > 0) {
+                                restoredPosition = Math.min(anchorPosition, adapterHolder[0].getItemCount() - 1);
+                            }
+                            if (restoredPosition != RecyclerView.NO_POSITION) {
+                                layoutManager.scrollToPositionWithOffset(restoredPosition, anchorTop);
+                            }
                         }
                     });
                 }
