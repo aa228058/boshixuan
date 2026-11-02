@@ -11942,6 +11942,7 @@ private void showRealActivityPage() {
     final FriendActivityPage[] pageHolder = new FriendActivityPage[1];
     final FriendActivityAdapter[] adapterHolder = new FriendActivityAdapter[1];
     final android.widget.ListView[] listHolder = new android.widget.ListView[1];
+    final android.widget.TextView[] emptyViewHolder = new android.widget.TextView[1];
     final boolean[] hasMoreHolder = new boolean[]{false};
 
     pageHolder[0] = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
@@ -11966,6 +11967,17 @@ private void showRealActivityPage() {
                 adapterHolder[0] = new FriendActivityAdapter(currentAccount,
                         messages == null ? new ArrayList<>() : new ArrayList<>(messages), profileActivity);
                 listView.setAdapter(adapterHolder[0]);
+                android.widget.TextView emptyView = new android.widget.TextView(getContext());
+                emptyView.setGravity(android.view.Gravity.CENTER);
+                emptyView.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                emptyView.setOnClickListener(v -> {
+                    if (pageHolder[0] != null && hasMoreHolder[0]) pageHolder[0].loadMore();
+                });
+                emptyViewHolder[0] = emptyView;
+                listView.setEmptyView(emptyView);
+                mActivityOverlay.addView(emptyView, org.telegram.ui.Components.LayoutHelper.createFrame(
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
                 listView.setVerticalScrollBarEnabled(true);
                 listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
                     @Override
@@ -12004,10 +12016,11 @@ private void showRealActivityPage() {
                 adapterHolder[0].setMessages(messages == null ? new ArrayList<>() : messages);
             }
 
-            // If a batch contains no matching messages, continue paging rather than leaving
-            // the user with an empty list that cannot generate a scroll event.
-            if ((messages == null || messages.isEmpty()) && hasMore && pageHolder[0] != null) {
-                pageHolder[0].loadMore();
+            if (emptyViewHolder[0] != null) {
+                emptyViewHolder[0].setText(hasMore
+                        ? "暂时没有匹配消息，点击此处继续加载"
+                        : "近期没有发言");
+                emptyViewHolder[0].setEnabled(hasMore);
             }
         }
 
