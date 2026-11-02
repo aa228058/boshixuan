@@ -3,6 +3,9 @@ name: Build Boshixuan APK
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,39 +34,57 @@ jobs:
       - name: Configure Android SDK
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Generate Keystore
+      - name: Configure fixed release signing
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          for name in RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+
           mkdir -p TMessagesProj/config
-          keytool -genkeypair -v -keystore TMessagesProj/config/release.keystore -alias androidkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Boshixuan"
-          
-          sed -i '/RELEASE_STORE_PASSWORD/d' gradle.properties || true
-          sed -i '/RELEASE_KEY_ALIAS/d' gradle.properties || true
-          sed -i '/RELEASE_KEY_PASSWORD/d' gradle.properties || true
-          echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
-          echo "RELEASE_KEY_ALIAS=androidkey" >> gradle.properties
-          echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > TMessagesProj/config/release.keystore
+          test -s TMessagesProj/config/release.keystore
 
-      # 👇 核心：真正打包 APK
-      - name: Build Afat Debug APK
+          sed -i '/^RELEASE_STORE_PASSWORD=/d' gradle.properties
+          sed -i '/^RELEASE_KEY_ALIAS=/d' gradle.properties
+          sed -i '/^RELEASE_KEY_PASSWORD=/d' gradle.properties
+          {
+            printf 'RELEASE_STORE_PASSWORD=%s\\n' "$RELEASE_STORE_PASSWORD"
+            printf 'RELEASE_KEY_ALIAS=%s\\n' "$RELEASE_KEY_ALIAS"
+            printf 'RELEASE_KEY_PASSWORD=%s\\n' "$RELEASE_KEY_PASSWORD"
+          } >> gradle.properties
+
+      - name: Build single universal Release APK
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleAfatDebug -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2
+          ./gradlew :TMessagesProj_App:assembleAfatRelease \
+            -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g" \
+            -Dorg.gradle.workers.max=2
 
-      # 👇 收集生成的 APK
-      - name: Collect APK
+      - name: Verify APK and fixed signature
         run: |
+          set -euo pipefail
+          APK="TMessagesProj_App/build/outputs/apk/afat/release/app.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
           mkdir -p dist
-          find . -name "*.apk" -type f -exec cp {} dist/ \;
-          if [ -z "$(ls -A dist/)" ]; then
-            echo "❌ 错误：编译完成了，但没找到 APK！"
-            exit 1
-          fi
-          ls -lh dist/
+          cp "$APK" dist/Boshixuan-universal-release.apk
+          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
+          ls -lh dist/Boshixuan-universal-release.apk
 
-      # 👇 上传供你下载
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Boshixuan-APK
-          path: dist/*.apk
+          name: Boshixuan-Universal-Release-APK
+          path: dist/Boshixuan-universal-release.apk
           if-no-files-found: error
