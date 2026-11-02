@@ -188,8 +188,10 @@ public class FriendActivityPage {
             ConnectionsManager.getInstance(currentAccount).sendRequest(searchReq, (res, err) ->
                     AndroidUtilities.runOnUIThread(() -> {
                         if (err != null) {
-                            // Keep FLOOD errors retryable; other errors finish this chat.
-                            if (err.text == null || !err.text.contains("FLOOD")) {
+                            // Retry transient network/server/rate-limit failures on the next
+                            // loadMore() call. Permanent RPC errors (for example invalid or
+                            // inaccessible peers) should not keep the activity list alive forever.
+                            if (!isRetryableChatError(err)) {
                                 finishedChats.add(chatId);
                             }
                         } else if (res instanceof TLRPC.messages_Messages) {
@@ -245,6 +247,25 @@ public class FriendActivityPage {
         if (completedCount[0] >= pendingChats.size()) {
             finishPage(addedNew[0]);
         }
+    }
+
+    private boolean isRetryableChatError(TLRPC.TL_error error) {
+        if (error == null) {
+            return false;
+        }
+        // Telegram commonly uses 420 for FLOOD_WAIT, 5xx for server failures,
+        // and negative codes for transport/network failures.
+        if (error.code == 420 || error.code >= 500 || error.code < 0) {
+            return true;
+        }
+        // A few temporary conditions can be reported with a 4xx RPC code.
+        String text = error.text != null ? error.text.toUpperCase() : "";
+        return text.contains("FLOOD_WAIT")
+                || text.contains("NETWORK")
+                || text.contains("TIMEOUT")
+                || text.contains("CONNECTION")
+                || text.contains("SERVER_ERROR")
+                || text.contains("MSG_WAIT");
     }
 
     private void sortMessages() {
