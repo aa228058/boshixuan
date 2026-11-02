@@ -95,6 +95,22 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             group.messages.add(message);
         }
         groups.addAll(grouped.values());
+
+        // Keep each group's messages newest-first, then order groups by their
+        // latest activity so the most recently active group appears at the top.
+        for (GroupItem group : groups) {
+            java.util.Collections.sort(group.messages, (first, second) -> {
+                int dateCompare = Integer.compare(second.date, first.date);
+                return dateCompare != 0 ? dateCompare : Integer.compare(second.id, first.id);
+            });
+        }
+        java.util.Collections.sort(groups, (first, second) -> {
+            int firstDate = first.messages.isEmpty() ? 0 : first.messages.get(0).date;
+            int secondDate = second.messages.isEmpty() ? 0 : second.messages.get(0).date;
+            int dateCompare = Integer.compare(secondDate, firstDate);
+            return dateCompare != 0 ? dateCompare : Long.compare(first.dialogId, second.dialogId);
+        });
+
         // Remove stale expansion state without disturbing groups that remain visible.
         HashSet<Long> existing = new HashSet<>();
         for (GroupItem group : groups) existing.add(group.dialogId);
