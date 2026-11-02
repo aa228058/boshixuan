@@ -113,10 +113,9 @@ public final class CrossAccountInboxStore {
                                      String groupTitle, String senderName, String preview) {
         SharedPreferences prefs = preferences(account, ownerId);
         JSONArray old = readArray(prefs);
-        JSONArray updated = new JSONArray();
         try {
             boolean wasHandled = false;
-            int kept = 0;
+            ArrayList<JSONObject> records = new ArrayList<>();
             for (int i = 0; i < old.length(); i++) {
                 JSONObject existing = old.optJSONObject(i);
                 if (existing == null) {
@@ -124,15 +123,11 @@ public final class CrossAccountInboxStore {
                 }
                 if (existing.optLong("dialog_id") == dialogId
                         && existing.optInt("message_id") == messageId) {
-                    // Message updates and history reloads may revisit an already
-                    // collected item. Preserve the user's processing state.
-                    wasHandled = existing.optBoolean("handled", false);
+                    // Preserve handled state even if a duplicated historical copy exists.
+                    wasHandled |= existing.optBoolean("handled", false);
                     continue;
                 }
-                if (kept < MAX_MESSAGES_PER_ACCOUNT - 1) {
-                    updated.put(existing);
-                    kept++;
-                }
+                records.add(existing);
             }
 
             JSONObject record = new JSONObject();
@@ -145,13 +140,26 @@ public final class CrossAccountInboxStore {
             record.put("sender_name", senderName);
             record.put("preview", preview);
             record.put("handled", wasHandled);
-            // Keep newest messages at the top of the persisted snapshot.
-            JSONArray reordered = new JSONArray();
-            reordered.put(record);
-            for (int i = 0; i < updated.length(); i++) {
-                reordered.put(updated.optJSONObject(i));
+            records.add(record);
+
+            // History reloads can revisit older messages after newer ones. Sort by
+            // Telegram message date before applying the per-account retention cap.
+            Collections.sort(records, (first, second) -> {
+                int comparison = Integer.compare(second.optInt("date"), first.optInt("date"));
+                if (comparison == 0) {
+                    comparison = Integer.compare(second.optInt("message_id"), first.optInt("message_id"));
+                }
+                if (comparison == 0) {
+                    comparison = Long.compare(second.optLong("dialog_id"), first.optLong("dialog_id"));
+                }
+                return comparison;
+            });
+
+            JSONArray updated = new JSONArray();
+            int limit = Math.min(records.size(), MAX_MESSAGES_PER_ACCOUNT);
+            for (int i = 0; i < limit; i++) {
+                updated.put(records.get(i));
             }
-            updated = reordered;
             prefs.edit().putString(KEY_MESSAGES, updated.toString()).apply();
         } catch (Exception e) {
             FileLog.e(e);
