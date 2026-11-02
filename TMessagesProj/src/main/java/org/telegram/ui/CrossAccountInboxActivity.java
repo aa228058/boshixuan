@@ -3,6 +3,7 @@ package org.telegram.ui;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
+import android.app.AlertDialog;
 import android.graphics.Canvas;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -10,6 +11,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.telegram.messenger.AccountInstance;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.CrossAccountInboxStore;
@@ -27,6 +30,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MangoSettings;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -51,7 +55,7 @@ import java.util.HashSet;
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
         NotificationCenter.NotificationCenterDelegate {
     public static final String SETTING_KEY = "cross_account_inbox";
-    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6;
+    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
     private ItemTouchHelper replySwipeHelper;
@@ -427,6 +431,10 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 row.subtext = detail;
                 row.object = reply;
                 items.add(row);
+                UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_send,
+                        "快捷回复");
+                quickReply.object = reply;
+                items.add(quickReply);
                 UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.msg_check,
                         reply.handled ? "标记为未处理" : "标记为已处理");
                 handled.object = reply;
@@ -731,6 +739,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             listView.adapter.update(true);
         } else if (item.id == ITEM_REPLY_ROW && item.object instanceof CrossAccountInboxStore.Entry) {
             openReply((CrossAccountInboxStore.Entry) item.object);
+        } else if (item.id == ITEM_REPLY_SEND && item.object instanceof CrossAccountInboxStore.Entry) {
+            showQuickReply((CrossAccountInboxStore.Entry) item.object);
         } else if (item.id == ITEM_REPLY_HANDLED && item.object instanceof CrossAccountInboxStore.Entry) {
             CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
             CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
@@ -757,6 +767,78 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         } else if (item.id == ITEM_MESSAGE && item.object instanceof Entry) {
             open((Entry) item.object);
         }
+    }
+
+    private MessageObject findReplyMessage(CrossAccountInboxStore.Entry row) {
+        MessagesController controller = MessagesController.getInstance(row.account);
+        MessageObject message = controller.dialogMessagesByIds.get(row.messageId);
+        if (isValidReplyMessage(message, row)) return message;
+        ArrayList<MessageObject> cached = controller.dialogMessage.get(row.dialogId);
+        if (cached != null) {
+            for (int i = 0; i < cached.size(); i++) {
+                MessageObject candidate = cached.get(i);
+                if (isValidReplyMessage(candidate, row)) return candidate;
+            }
+        }
+        return null;
+    }
+
+    private boolean isValidReplyMessage(MessageObject message, CrossAccountInboxStore.Entry row) {
+        return message != null && message.messageOwner != null && !message.deleted
+                && message.getId() == row.messageId && message.getDialogId() == row.dialogId
+                && !message.messageOwner.out;
+    }
+
+    private void showQuickReply(CrossAccountInboxStore.Entry row) {
+        if (getParentActivity() == null) return;
+        UserConfig config = UserConfig.getInstance(row.account);
+        if (!config.isClientActivated() || config.getClientUserId() != row.ownerId) {
+            new AlertDialog.Builder(getParentActivity())
+                    .setMessage("该消息所属账号已退出或账号已切换，无法发送。")
+                    .setPositiveButton(android.R.string.ok, null).show();
+            return;
+        }
+        MessageObject replyMessage = findReplyMessage(row);
+        if (replyMessage == null) {
+            new AlertDialog.Builder(getParentActivity())
+                    .setMessage("原始消息当前不在本地缓存中。请先打开对应群组加载消息，再使用快捷回复。")
+                    .setPositiveButton("打开群组", (dialog, which) -> openReply(row))
+                    .setNegativeButton(android.R.string.cancel, null).show();
+            return;
+        }
+        EditText input = new EditText(getParentActivity());
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        input.setHint("输入回复内容");
+        input.setMinLines(2);
+        input.setMaxLines(5);
+        int horizontal = AndroidUtilities.dp(20);
+        input.setPadding(horizontal, AndroidUtilities.dp(12), horizontal, AndroidUtilities.dp(8));
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("回复 " + (TextUtils.isEmpty(row.senderName) ? "群成员" : row.senderName))
+                .setView(input)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton("发送", (dialog, which) -> {
+                    String text = input.getText() == null ? "" : input.getText().toString().trim();
+                    if (TextUtils.isEmpty(text)) return;
+                    // Resolve and send through the source account only, replying to
+                    // the exact incoming message id captured by Telegram.
+                    MessageObject currentReply = findReplyMessage(row);
+                    if (currentReply == null) {
+                        new AlertDialog.Builder(getParentActivity())
+                                .setMessage("消息缓存已变化，请打开群组后重试。")
+                                .setPositiveButton(android.R.string.ok, null).show();
+                        return;
+                    }
+                    SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
+                            text, row.dialogId, currentReply, null, null, true,
+                            null, null, null, true, 0, 0, null, false);
+                    AccountInstance.getInstance(row.account).getSendMessagesHelper().sendMessage(params);
+                    CrossAccountInboxStore.setHandled(row.account, row.ownerId, row.dialogId,
+                            row.messageId, true);
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (active && listView != null) listView.adapter.update(true);
+                    }, 250);
+                }).show();
     }
 
     private void openReply(CrossAccountInboxStore.Entry row) {
