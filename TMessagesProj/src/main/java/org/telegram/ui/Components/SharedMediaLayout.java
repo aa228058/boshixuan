@@ -6791,7 +6791,21 @@ if (id == TAB_MANGO_ACTIVITY) {
             final ArrayList<Pair<Integer, CharSequence>> tabs = new ArrayList<>();
 
 if (!isStoriesView()) {
-    tabs.add(0, new Pair(TAB_MANGO_ACTIVITY, "活动"));
+    tabs.add(new Pair(TAB_MANGO_ACTIVITY, "活动"));
+    if (hasGifts) {
+        tabs.add(new Pair(TAB_GIFTS, TextUtils.concat(getString(R.string.ProfileGifts), giftsContainer.getLastEmojis(null))));
+        giftsLastHash = giftsContainer.getLastEmojisHash();
+    }
+    if (hasMedia[0] > 0 || mangoRequiredMediaTab == TAB_PHOTOVIDEO) {
+        if (hasMedia[1] == 0 && hasMedia[2] == 0 && hasMedia[3] == 0 && hasMedia[4] == 0 && hasMedia[5] == 0 && hasMedia[6] == 0 && chatUsersAdapter.chatInfo == null) {
+            tabs.add(new Pair(TAB_PHOTOVIDEO, getString(R.string.SharedMediaTabFull2)));
+        } else {
+            tabs.add(new Pair(TAB_PHOTOVIDEO, getString(R.string.SharedMediaTab2)));
+        }
+    }
+    if (hasMedia[6] > 0) {
+        tabs.add(new Pair(TAB_COMMON_GROUPS, getString(R.string.SharedGroupsTab2)));
+    }
 }
 
             if (isSearchingStories()) {
@@ -6811,10 +6825,6 @@ if (!isStoriesView()) {
                     }
                 }
             }
-            if (hasGifts) {
-                tabs.add(new Pair(TAB_GIFTS, TextUtils.concat(getString(R.string.ProfileGifts), giftsContainer.getLastEmojis(null))));
-                giftsLastHash = giftsContainer.getLastEmojisHash();
-            }
             if (hasEditBotPreviews) {
                 tabs.add(new Pair(TAB_BOT_PREVIEWS, getString(R.string.ProfileBotPreviewTab)));
             }
@@ -6824,13 +6834,6 @@ if (!isStoriesView()) {
                 }
                 if (chatUsersAdapter.chatInfo != null) {
                     tabs.add(new Pair(TAB_GROUPUSERS, getString(R.string.GroupMembers)));
-                }
-                if (hasMedia[0] > 0 || mangoRequiredMediaTab == TAB_PHOTOVIDEO) {
-                    if (hasMedia[1] == 0 && hasMedia[2] == 0 && hasMedia[3] == 0 && hasMedia[4] == 0 && hasMedia[5] == 0 && hasMedia[6] == 0 && chatUsersAdapter.chatInfo == null) {
-                        tabs.add(new Pair(TAB_PHOTOVIDEO, getString(R.string.SharedMediaTabFull2)));
-                    } else {
-                        tabs.add(new Pair(TAB_PHOTOVIDEO, getString(R.string.SharedMediaTab2)));
-                    }
                 }
                 if (hasSavedMessages) {
                     tabs.add(new Pair(TAB_SAVED_MESSAGES, getString(R.string.SavedMessagesTab2)));
@@ -6856,9 +6859,6 @@ if (!isStoriesView()) {
                 }
                 if (hasMedia[5] > 0 || mangoRequiredMediaTab == TAB_GIF) {
                     tabs.add(new Pair(TAB_GIF, getString(R.string.SharedGIFsTab2)));
-                }
-                if (hasMedia[6] > 0) {
-                    tabs.add(new Pair(TAB_COMMON_GROUPS, getString(R.string.SharedGroupsTab2)));
                 }
                 if (hasRecommendations) {
                     tabs.add(new Pair(TAB_RECOMMENDED_CHANNELS, getString(dialog_id > 0 ? R.string.SimilarBotsTab : R.string.SimilarChannelsTab)));
