@@ -168,7 +168,7 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         progressBar.setProgress(total <= 0 ? 0 : (int) (processed * 1000L / total));
         progressBar.setVisibility(total > 0 ? View.VISIBLE : View.GONE);
         progressStats.setText(total > 0
-                ? "成功 " + success + "    跳过/失败 " + skipped + "    剩余 " + remaining
+                ? "已提交 " + success + "    跳过/异常 " + skipped + "    剩余 " + remaining
                 : "任务开始后，这里会显示实时进度和发送结果");
         progressStats.setVisibility(View.VISIBLE);
         boolean busy = loader != null || manager.isRunning();
@@ -207,7 +207,7 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
             card.addView(title, LayoutHelper.createLinear(-1, -2));
             TextView stats = label(getParentActivity(), 13, Theme.key_windowBackgroundWhiteGrayText);
             int done = Math.min(record.total, record.processed);
-            stats.setText("成功 " + Math.max(0, done - record.skipped) + " · 跳过/失败 " + record.skipped
+            stats.setText("已提交 " + Math.max(0, done - record.skipped) + " · 跳过/异常 " + record.skipped
                     + " · 剩余 " + Math.max(0, record.total - done) + " · 总计 " + record.total);
             card.addView(stats, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 0));
             TextView preview = label(getParentActivity(), 13, Theme.key_windowBackgroundWhiteGrayText);
