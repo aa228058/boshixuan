@@ -100,15 +100,19 @@ public class NotificationsService extends Service {
             return;
         }
         lastConnectionCheckTime = now;
-        try {
-            for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
+        for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
+            try {
                 if (UserConfig.getInstance(i).isClientActivated()) {
-                    // 唤醒底层网络并检查连接
+                    // 每个账号独立检查，单个账号异常不能中断其他账号的连接恢复
                     ConnectionsManager.getInstance(i).checkConnection();
                     ConnectionsManager.getInstance(i).resumeNetworkMaybe();
                 }
+            } catch (Throwable e) {
+                if (BuildVars.LOGS_ENABLED) {
+                    FileLog.e("NotificationsService: connection check failed for account " + i, e);
+                }
             }
-        } catch (Throwable ignore) {}
+        }
     }
 
     private void createChannel() {
