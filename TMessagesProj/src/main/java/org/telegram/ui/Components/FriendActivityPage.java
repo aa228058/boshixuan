@@ -28,6 +28,8 @@ public class FriendActivityPage {
     
     private boolean isLoading = false;
     private boolean hasCommonChats = false;
+    private boolean commonChatsEndReached = false;
+    private long commonChatsMaxId = 0;
 
     public FriendActivityPage(int currentAccount, long userId, Callback callback) {
         this.currentAccount = currentAccount;
@@ -38,56 +40,99 @@ public class FriendActivityPage {
     public void loadFirstPage() {
         if (isLoading) return;
         isLoading = true;
-        
+
         MessagesController controller = MessagesController.getInstance(currentAccount);
         TLRPC.InputUser inputUser = controller.getInputUser(targetUserId);
         if (inputUser == null) {
             onError("目标用户无效");
             return;
         }
+        loadCommonChatsPage(inputUser, controller);
+    }
 
+    private void loadCommonChatsPage(TLRPC.InputUser inputUser, MessagesController controller) {
         TLRPC.TL_messages_getCommonChats req = new TLRPC.TL_messages_getCommonChats();
         req.user_id = inputUser;
-        req.limit = 20;
+        req.max_id = commonChatsMaxId;
+        req.limit = 100;
 
         ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
             if (error != null || !(response instanceof TLRPC.messages_Chats)) {
                 onError(error != null ? error.text : "获取群组失败");
                 return;
             }
+
             TLRPC.messages_Chats result = (TLRPC.messages_Chats) response;
             if (result.chats == null || result.chats.isEmpty()) {
-                callback.onResult(allMessages, false);
-                isLoading = false;
+                commonChatsEndReached = true;
+                hasCommonChats = !chatIds.isEmpty();
+                if (chatIds.isEmpty()) {
+                    isLoading = false;
+                    callback.onResult(allMessages, false);
+                } else {
+                    fetchMessages();
+                }
                 return;
             }
+
             controller.putChats(result.chats, false);
-            chatIds.clear();
+            long nextMaxId = Long.MAX_VALUE;
+            int addedChats = 0;
             for (TLRPC.Chat chat : result.chats) {
-                if (chat != null && chat.id != 0 && !chatIds.contains(chat.id)) {
+                if (chat == null || chat.id == 0) continue;
+                nextMaxId = Math.min(nextMaxId, chat.id);
+                if (!chatIds.contains(chat.id)) {
                     chatIds.add(chat.id);
                     chatOffsets.put(chat.id, 0);
+                    addedChats++;
                 }
             }
-            hasCommonChats = true;
-            fetchMessages();
+
+            if (result.chats.size() < 100 || addedChats == 0 || nextMaxId == Long.MAX_VALUE) {
+                commonChatsEndReached = true;
+            } else {
+                // Telegram's max_id pagination returns chats with IDs below this boundary.
+                commonChatsMaxId = nextMaxId;
+            }
+            hasCommonChats = !chatIds.isEmpty();
+            if (!hasCommonChats) {
+                isLoading = false;
+                callback.onResult(allMessages, false);
+            } else {
+                fetchMessages();
+            }
         }));
     }
-
     public void loadMore() {
-        if (isLoading || !hasCommonChats) return;
-        
+        if (isLoading) return;
+
         boolean anyNotFinished = false;
         for (Long chatId : chatIds) {
-            if (!finishedChats.contains(chatId)) { anyNotFinished = true; break; }
+            if (!finishedChats.contains(chatId)) {
+                anyNotFinished = true;
+                break;
+            }
         }
-        
-        if (!anyNotFinished) {
-            callback.onResult(allMessages, false);
+
+        isLoading = true;
+        if (anyNotFinished) {
+            fetchMessages();
             return;
         }
-        isLoading = true;
-        fetchMessages();
+
+        if (!commonChatsEndReached) {
+            MessagesController controller = MessagesController.getInstance(currentAccount);
+            TLRPC.InputUser inputUser = controller.getInputUser(targetUserId);
+            if (inputUser == null) {
+                onError("目标用户无效");
+                return;
+            }
+            loadCommonChatsPage(inputUser, controller);
+            return;
+        }
+
+        isLoading = false;
+        callback.onResult(allMessages, false);
     }
 
     private void fetchMessages() {
@@ -179,9 +224,14 @@ public class FriendActivityPage {
                 return dateCompare != 0 ? dateCompare : Integer.compare(m2.id, m1.id);
             });
         }
-        boolean hasMore = false;
-        for (Long chatId : chatIds) {
-            if (!finishedChats.contains(chatId)) { hasMore = true; break; }
+        boolean hasMore = !commonChatsEndReached;
+        if (!hasMore) {
+            for (Long chatId : chatIds) {
+                if (!finishedChats.contains(chatId)) {
+                    hasMore = true;
+                    break;
+                }
+            }
         }
         isLoading = false;
         callback.onResult(allMessages, hasMore);
