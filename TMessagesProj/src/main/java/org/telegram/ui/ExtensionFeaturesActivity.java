@@ -1335,7 +1335,8 @@ public class ExtensionFeaturesActivity extends BaseFragment {
             rows.addView(check, LayoutHelper.createLinear(-1, 44)); checks.add(check);
         }
         scroll.addView(rows);
-        content.addView(scroll, LayoutHelper.createLinear(-1, Math.min(AndroidUtilities.dp(320), AndroidUtilities.dp(44) * checks.size())));
+        int maxListHeight = Math.min(AndroidUtilities.dp(320), Math.max(AndroidUtilities.dp(120), AndroidUtilities.displaySize.y / 3));
+        content.addView(scroll, LayoutHelper.createLinear(-1, Math.min(maxListHeight, AndroidUtilities.dp(44) * checks.size())));
         TextView count = new TextView(context);
         count.setText("已选择 " + checks.size() + " / " + checks.size() + " 个群组");
         count.setTextSize(12); count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
