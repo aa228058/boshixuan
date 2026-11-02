@@ -21,6 +21,7 @@ public final class CrossAccountInboxStore {
     private static final String PREFS_PREFIX = "cross_account_inbox_";
     private static final String KEY_MESSAGES = "messages";
     private static final int MAX_MESSAGES_PER_ACCOUNT = 500;
+    private static final DispatchQueue storageQueue = new DispatchQueue("crossAccountInboxStore");
 
     private CrossAccountInboxStore() {
     }
@@ -61,7 +62,7 @@ public final class CrossAccountInboxStore {
     }
 
     /** Called from MessagesController for each newly integrated, non-scheduled message. */
-    public static synchronized void recordReply(int account, long dialogId, MessageObject message) {
+    public static void recordReply(int account, long dialogId, MessageObject message) {
         if (message == null || message.messageOwner == null || message.messageOwner.out
                 || !CrossAccountInboxReplyMatcher.isReplyToOwnGroupMessage(account, dialogId, message)) {
             return;
@@ -91,27 +92,41 @@ public final class CrossAccountInboxStore {
         if (preview == null) {
             preview = "";
         }
-        preview = preview.replace('\n', ' ').trim();
+        preview = preview.replace('\\n', ' ').trim();
         if (preview.length() > 500) {
             preview = preview.substring(0, 500);
         }
 
-        SharedPreferences prefs = preferences(account, config.getClientUserId());
+        final long ownerId = config.getClientUserId();
+        final int messageId = message.getId();
+        final int replyToMessageId = reply.reply_to_msg_id;
+        final int date = message.messageOwner.date;
+        final String savedGroupTitle = chat.title == null ? "" : chat.title;
+        final String savedSenderName = senderName;
+        final String savedPreview = preview;
+        storageQueue.postRunnable(() -> persistReply(account, ownerId, dialogId, messageId,
+                replyToMessageId, date, senderId, savedGroupTitle, savedSenderName, savedPreview));
+    }
+
+    private static void persistReply(int account, long ownerId, long dialogId, int messageId,
+                                     int replyToMessageId, int date, long senderId,
+                                     String groupTitle, String senderName, String preview) {
+        SharedPreferences prefs = preferences(account, ownerId);
         JSONArray old = readArray(prefs);
         JSONArray updated = new JSONArray();
-        JSONObject record = new JSONObject();
         try {
+            JSONObject record = new JSONObject();
             record.put("dialog_id", dialogId);
-            record.put("message_id", message.getId());
-            record.put("reply_to_message_id", reply.reply_to_msg_id);
-            record.put("date", message.messageOwner.date);
+            record.put("message_id", messageId);
+            record.put("reply_to_message_id", replyToMessageId);
+            record.put("date", date);
             record.put("sender_id", senderId);
-            record.put("group_title", chat.title == null ? "" : chat.title);
+            record.put("group_title", groupTitle);
             record.put("sender_name", senderName);
             record.put("preview", preview);
             record.put("handled", false);
-
             updated.put(record);
+
             int kept = 0;
             for (int i = 0; i < old.length() && kept < MAX_MESSAGES_PER_ACCOUNT - 1; i++) {
                 JSONObject existing = old.optJSONObject(i);
@@ -119,7 +134,7 @@ public final class CrossAccountInboxStore {
                     continue;
                 }
                 if (existing.optLong("dialog_id") == dialogId
-                        && existing.optInt("message_id") == message.getId()) {
+                        && existing.optInt("message_id") == messageId) {
                     continue;
                 }
                 updated.put(existing);
@@ -131,7 +146,7 @@ public final class CrossAccountInboxStore {
         }
     }
 
-    public static synchronized ArrayList<Entry> getAllEntries() {
+    public static ArrayList<Entry> getAllEntries() {
         ArrayList<Entry> result = new ArrayList<>();
         for (int account : UserConfig.getActivatedAccounts()) {
             UserConfig config = UserConfig.getInstance(account);
@@ -159,29 +174,31 @@ public final class CrossAccountInboxStore {
         return result;
     }
 
-    public static synchronized void setHandled(int account, long ownerId, long dialogId,
-                                                int messageId, boolean handled) {
-        JSONArray old = readArray(preferences(account, ownerId));
-        JSONArray updated = new JSONArray();
-        boolean changed = false;
-        for (int i = 0; i < old.length(); i++) {
-            JSONObject item = old.optJSONObject(i);
-            if (item == null) {
-                continue;
-            }
-            if (item.optLong("dialog_id") == dialogId && item.optInt("message_id") == messageId) {
-                try {
-                    item.put("handled", handled);
-                    changed = true;
-                } catch (Exception e) {
-                    FileLog.e(e);
+    public static void setHandled(int account, long ownerId, long dialogId,
+                                  int messageId, boolean handled) {
+        storageQueue.postRunnable(() -> {
+            JSONArray old = readArray(preferences(account, ownerId));
+            JSONArray updated = new JSONArray();
+            boolean changed = false;
+            for (int i = 0; i < old.length(); i++) {
+                JSONObject item = old.optJSONObject(i);
+                if (item == null) {
+                    continue;
                 }
+                if (item.optLong("dialog_id") == dialogId && item.optInt("message_id") == messageId) {
+                    try {
+                        item.put("handled", handled);
+                        changed = true;
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                }
+                updated.put(item);
             }
-            updated.put(item);
-        }
-        if (changed) {
-            preferences(account, ownerId).edit().putString(KEY_MESSAGES, updated.toString()).apply();
-        }
+            if (changed) {
+                preferences(account, ownerId).edit().putString(KEY_MESSAGES, updated.toString()).apply();
+            }
+        });
     }
 
     private static JSONArray readArray(SharedPreferences preferences) {
