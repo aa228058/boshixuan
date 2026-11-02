@@ -922,8 +922,21 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             }
         }
         if (labelsById.isEmpty()) {
-            new AlertDialog.Builder(getParentActivity()).setMessage("当前账号范围内还没有可筛选的群组回复。")
-                    .setPositiveButton(android.R.string.ok, null).show();
+            java.util.HashSet<String> selectedGroups = getSelectedInboxGroups();
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity())
+                    .setMessage("当前账号范围内还没有可筛选的群组回复。");
+            if (!selectedGroups.isEmpty()) {
+                builder.setMessage("当前账号范围内已没有可选群组，是否清除之前保存的群组筛选？")
+                        .setPositiveButton("清除筛选", (dialog, which) -> {
+                            ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
+                                    .edit().remove(INBOX_GROUPS_KEY).apply();
+                            if (active && listView != null) listView.adapter.update(true);
+                        })
+                        .setNegativeButton(android.R.string.cancel, null);
+            } else {
+                builder.setPositiveButton(android.R.string.ok, null);
+            }
+            builder.show();
             return;
         }
         java.util.ArrayList<String> ids = new java.util.ArrayList<>(labelsById.keySet());
