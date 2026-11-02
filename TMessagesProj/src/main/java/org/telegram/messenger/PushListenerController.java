@@ -144,7 +144,7 @@ public class PushListenerController {
 
                     byte[] messageKeyFull = Utilities.computeSHA256(SharedConfig.pushAuthKey, 88 + 8, 32, buffer.buffer, 24, buffer.buffer.limit());
                     if (!Utilities.arraysEquals(messageKey, 0, messageKeyFull, 8)) {
-                        onDecryptError();
+                        onDecryptError(pushCompletionLatch);
                         if (BuildVars.LOGS_ENABLED) {
                             FileLog.d(String.format(tag + " DECRYPT ERROR 3, key = %s", Utilities.bytesToHex(SharedConfig.pushAuthKey)));
                         }
@@ -1501,7 +1501,7 @@ public class PushListenerController {
                         ConnectionsManager.getInstance(currentAccount).resumeNetworkMaybe();
                         pushCompletionLatch.countDown();
                     } else {
-                        onDecryptError();
+                        onDecryptError(pushCompletionLatch);
                     }
                     if (BuildVars.LOGS_ENABLED) {
                         FileLog.e("error in loc_key = " + loc_key + " json " + jsonString);
