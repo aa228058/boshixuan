@@ -11985,7 +11985,7 @@ private android.view.View createActivityEmptyPreview() {
     groupCount.setTextSize(12);
     groupCount.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText2));
     groupInfo.addView(groupCount, org.telegram.ui.Components.LayoutHelper.createLinear(-1, -2));
-    groupHeader.addView(groupInfo, org.telegram.ui.Components.LayoutHelper.createLinear(0, -2, 1f, 0, 0, 12, 0, 0));
+    groupHeader.addView(groupInfo, org.telegram.ui.Components.LayoutHelper.createLinear(0, -2, 1f, 0, 0, 12, 0));
     card.addView(groupHeader, org.telegram.ui.Components.LayoutHelper.createLinear(-1, -2));
 
     android.view.View divider = new android.view.View(context);
