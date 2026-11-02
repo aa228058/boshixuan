@@ -19,7 +19,7 @@ public final class MangoGroupBroadcastManager {
     public static long start(int account, String text, ArrayList<Long> targetIds,
             ArrayList<String> targetNames, int minSeconds, int maxSeconds) {
         if (TextUtils.isEmpty(text) || targetIds == null || targetIds.isEmpty()) return 0;
-        long taskId = MangoGroupBroadcastTaskStore.create(account, text, targetNames, targetIds);
+        long taskId = MangoGroupBroadcastTaskStore.create(account, text, targetNames, targetIds, minSeconds, maxSeconds);
         Runner runner = new Runner(account, taskId, Math.max(1, minSeconds), Math.max(minSeconds + 1, maxSeconds), 0);
         RUNNERS.put(key(account, taskId), runner);
         runner.scheduleNext();
@@ -34,7 +34,7 @@ public final class MangoGroupBroadcastManager {
         return true;
     }
 
-    public static boolean resume(int account, long taskId, int minSeconds, int maxSeconds) {
+    public static boolean resume(int account, long taskId) {
         String key = key(account, taskId);
         if (RUNNERS.containsKey(key)) return false;
         MangoGroupBroadcastTaskStore.Task task = MangoGroupBroadcastTaskStore.getTask(account, taskId);
@@ -42,8 +42,8 @@ public final class MangoGroupBroadcastManager {
                 && task.state != MangoGroupBroadcastTaskStore.INTERRUPTED)
                 || task.processed >= task.total || task.targetIds.size() != task.total) return false;
         MangoGroupBroadcastTaskStore.setState(account, taskId, MangoGroupBroadcastTaskStore.SENDING);
-        Runner runner = new Runner(account, taskId, Math.max(1, minSeconds),
-                Math.max(minSeconds + 1, maxSeconds), task.processed);
+        Runner runner = new Runner(account, taskId, Math.max(1, task.minSeconds),
+                Math.max(task.minSeconds + 1, task.maxSeconds), task.processed);
         RUNNERS.put(key, runner);
         runner.scheduleNext();
         return true;
