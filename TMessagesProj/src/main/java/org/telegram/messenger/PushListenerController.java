@@ -280,12 +280,19 @@ public class PushListenerController {
                                     args[a] = loc_args.getString(a);
                                 }
                             } else {
+                                pushCompletionLatch.countDown();
                                 return;
                             }
-                            if (args.length < 2) return;
+                            if (args.length < 2) {
+                                pushCompletionLatch.countDown();
+                                return;
+                            }
 
                             final String data_url = custom.optString("url");
-                            if (TextUtils.isEmpty(data_url)) return;
+                            if (TextUtils.isEmpty(data_url)) {
+                                pushCompletionLatch.countDown();
+                                return;
+                            }
 
                             final long dialogId = UserObject.OAUTH; // UserConfig.getInstance(currentAccount).getClientUserId();
                             final String messageText = LocaleController.formatString(R.string.BotAuthNotification, args[0], args[1]);
