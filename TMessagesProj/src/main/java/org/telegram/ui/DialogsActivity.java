@@ -13462,7 +13462,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             }
             io.addGap();
             io.add(R.drawable.msg_help, getString(R.string.FeedbackSupportChannel), () -> {
-                MessagesController.getInstance(currentAccount).openByUserName("ZSQ888", DialogsActivity.this, 1);
+                MessagesController.getInstance(currentAccount).openByUserName("boshixuan", DialogsActivity.this, 1);
             });
             ActionBarMenuSubItem hideOnlineItem = io.addChecked();
             hideOnlineItem.checkView.setDrawUnchecked(true);
