@@ -74,7 +74,18 @@ public class FriendActivityAdapter extends BaseAdapter {
         if (chat != null) drawable.setInfo(chat);
         avatar.setImageDrawable(drawable);
         if (chat != null && chat.photo != null) {
-            avatar.setImage(ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL), "50_50", drawable, chat);
+            // Prefer the normal small avatar, but fall back to the large or
+            // stripped thumbnail when Telegram has not supplied a small file location.
+            ImageLocation avatarLocation = ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL);
+            if (avatarLocation == null) {
+                avatarLocation = ImageLocation.getForChat(chat, ImageLocation.TYPE_BIG);
+            }
+            if (avatarLocation == null) {
+                avatarLocation = ImageLocation.getForChat(chat, ImageLocation.TYPE_STRIPPED);
+            }
+            if (avatarLocation != null) {
+                avatar.setImage(avatarLocation, "50_50", drawable, chat);
+            }
         }
         
         LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
