@@ -32,9 +32,11 @@ public final class MangoGroupBroadcastTaskStore {
         public final int state;
         public final ArrayList<String> targetNames;
         public final ArrayList<Long> targetIds;
+        public final int minSeconds;
+        public final int maxSeconds;
 
         Task(long id, long createdAt, String message, int total, int processed,
-                int queued, int failed, int state, ArrayList<String> targetNames, ArrayList<Long> targetIds) {
+                int queued, int failed, int state, ArrayList<String> targetNames, ArrayList<Long> targetIds, int minSeconds, int maxSeconds) {
             this.id = id;
             this.createdAt = createdAt;
             this.message = message;
@@ -45,6 +47,8 @@ public final class MangoGroupBroadcastTaskStore {
             this.state = state;
             this.targetNames = targetNames;
             this.targetIds = targetIds;
+            this.minSeconds = minSeconds;
+            this.maxSeconds = maxSeconds;
         }
     }
 
@@ -60,14 +64,14 @@ public final class MangoGroupBroadcastTaskStore {
                 "mango_group_broadcast_tasks_" + account, Context.MODE_PRIVATE);
     }
 
-    public static long create(int account, String message, ArrayList<String> targetNames, ArrayList<Long> targetIds) {
+    public static long create(int account, String message, ArrayList<String> targetNames, ArrayList<Long> targetIds, int minSeconds, int maxSeconds) {
         synchronized (LOCK) {
             long id = System.currentTimeMillis();
             ArrayList<Task> tasks = read(account);
             while (containsTask(tasks, id)) id++;
             ArrayList<String> names = targetNames == null ? new ArrayList<>() : new ArrayList<>(targetNames);
             ArrayList<Long> ids = targetIds == null ? new ArrayList<>() : new ArrayList<>(targetIds);
-            tasks.add(0, new Task(id, System.currentTimeMillis(), message, names.size(), 0, 0, 0, SENDING, names, ids));
+            tasks.add(0, new Task(id, System.currentTimeMillis(), message, names.size(), 0, 0, 0, SENDING, names, ids, minSeconds, maxSeconds));
             while (tasks.size() > MAX_HISTORY) tasks.remove(tasks.size() - 1);
             activeTasks.add(activeKey(account, id));
             write(account, tasks);
@@ -92,7 +96,7 @@ public final class MangoGroupBroadcastTaskStore {
                 int failedCount = old.failed + (queued ? 0 : 1);
                 int state = processed >= old.total ? COMPLETED : SENDING;
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
-                        processed, queuedCount, failedCount, state, old.targetNames, old.targetIds));
+                        processed, queuedCount, failedCount, state, old.targetNames, old.targetIds, old.minSeconds, old.maxSeconds));
                 if (state == COMPLETED) activeTasks.remove(activeKey(account, taskId));
                 write(account, tasks);
                 return;
@@ -131,7 +135,7 @@ public final class MangoGroupBroadcastTaskStore {
                 Task task = tasks.get(i);
                 if (task.state == SENDING && !activeTasks.contains(activeKey(account, task.id))) {
                     tasks.set(i, new Task(task.id, task.createdAt, task.message, task.total,
-                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames, task.targetIds));
+                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames, task.targetIds, task.minSeconds, task.maxSeconds));
                     changed = true;
                 }
             }
@@ -158,7 +162,7 @@ public final class MangoGroupBroadcastTaskStore {
                 tasks.add(new Task(item.optLong("id"), item.optLong("createdAt"),
                         item.optString("message", ""), item.optInt("total"),
                         item.optInt("processed"), item.optInt("queued"), item.optInt("failed"),
-                        item.optInt("state"), names, ids));
+                        item.optInt("state"), names, ids, item.optInt("minSeconds", 5), item.optInt("maxSeconds", 15)));
             }
         } catch (Exception e) {
             FileLog.e(e);
@@ -185,6 +189,8 @@ public final class MangoGroupBroadcastTaskStore {
                 JSONArray ids = new JSONArray();
                 for (Long id : task.targetIds) ids.put(id);
                 item.put("targetIds", ids);
+                item.put("minSeconds", task.minSeconds);
+                item.put("maxSeconds", task.maxSeconds);
                 array.put(item);
             } catch (Exception e) {
                 FileLog.e(e);
