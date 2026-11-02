@@ -135,26 +135,42 @@ public class FriendActivityPage {
         callback.onResult(allMessages, false);
     }
 
+    // Limit simultaneous per-chat searches to avoid flooding the connection manager.
+    private static final int MAX_CONCURRENT_CHAT_REQUESTS = 5;
+
     private void fetchMessages() {
         ArrayList<Long> pendingChats = new ArrayList<>();
         for (Long chatId : chatIds) {
             if (!finishedChats.contains(chatId)) pendingChats.add(chatId);
         }
 
-        if (pendingChats.isEmpty()) { finishPage(false); return; }
+        if (pendingChats.isEmpty()) {
+            finishPage(false);
+            return;
+        }
 
-        final int[] pendingCount = {pendingChats.size()};
+        final int[] nextIndex = {0};
+        final int[] activeCount = {0};
+        final int[] completedCount = {0};
         final boolean[] addedNew = {false};
+        dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew);
+    }
 
-        for (long chatId : pendingChats) {
+    // All callbacks are marshalled onto the UI thread, so these counters are serialized.
+    private void dispatchChatSearches(ArrayList<Long> pendingChats, int[] nextIndex,
+                                      int[] activeCount, int[] completedCount, boolean[] addedNew) {
+        while (activeCount[0] < MAX_CONCURRENT_CHAT_REQUESTS && nextIndex[0] < pendingChats.size()) {
+            long chatId = pendingChats.get(nextIndex[0]++);
+            activeCount[0]++;
+
             MessagesController controller = MessagesController.getInstance(currentAccount);
             TLRPC.InputPeer inputPeer = controller.getInputPeer(-chatId);
             TLRPC.InputPeer userPeer = controller.getInputPeer(targetUserId);
 
             if (inputPeer == null || userPeer == null) {
                 finishedChats.add(chatId);
-                pendingCount[0]--;
-                if (pendingCount[0] == 0) finishPage(addedNew[0]);
+                activeCount[0]--;
+                completedCount[0]++;
                 continue;
             }
 
@@ -162,44 +178,61 @@ public class FriendActivityPage {
             searchReq.peer = inputPeer;
             searchReq.q = "";
             searchReq.from_id = userPeer;
-            searchReq.flags |= 1; // 强制开启发送者过滤
+            searchReq.flags |= 1; // Enable sender filtering.
             searchReq.filter = new TLRPC.TL_inputMessagesFilterEmpty();
             searchReq.limit = 20;
-            searchReq.offset_id = chatOffsets.get(chatId); 
+            searchReq.offset_id = chatOffsets.get(chatId);
 
-            ConnectionsManager.getInstance(currentAccount).sendRequest(searchReq, (res, err) -> AndroidUtilities.runOnUIThread(() -> {
-                if (err != null) {
-                    if (err.text == null || !err.text.contains("FLOOD")) {
-                        finishedChats.add(chatId); 
-                    }
-                } else if (res instanceof TLRPC.messages_Messages) {
-                    TLRPC.messages_Messages msgs = (TLRPC.messages_Messages) res;
-                    if (msgs.messages == null || msgs.messages.isEmpty()) {
-                        finishedChats.add(chatId);
-                    } else {
-                        controller.putUsers(msgs.users, false);
-                        controller.putChats(msgs.chats, false);
-                        
-                        int oldestId = Integer.MAX_VALUE;
-                        for (TLRPC.Message m : msgs.messages) {
-                            if (m == null) continue;
-                            if (!(m.from_id instanceof TLRPC.TL_peerUser) || m.from_id.user_id != targetUserId) continue;
-                            
-                            String key = chatId + "_" + m.id;
-                            if (loadedMessageKeys.add(key)) {
-                                m.dialog_id = -chatId;
-                                allMessages.add(m);
-                                addedNew[0] = true;
+            ConnectionsManager.getInstance(currentAccount).sendRequest(searchReq, (res, err) ->
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (err != null) {
+                            // Keep FLOOD errors retryable; other errors finish this chat.
+                            if (err.text == null || !err.text.contains("FLOOD")) {
+                                finishedChats.add(chatId);
                             }
-                            oldestId = Math.min(oldestId, m.id);
+                        } else if (res instanceof TLRPC.messages_Messages) {
+                            TLRPC.messages_Messages msgs = (TLRPC.messages_Messages) res;
+                            if (msgs.messages == null || msgs.messages.isEmpty()) {
+                                finishedChats.add(chatId);
+                            } else {
+                                controller.putUsers(msgs.users, false);
+                                controller.putChats(msgs.chats, false);
+
+                                int oldestId = Integer.MAX_VALUE;
+                                for (TLRPC.Message message : msgs.messages) {
+                                    if (message == null) continue;
+                                    if (!(message.from_id instanceof TLRPC.TL_peerUser)
+                                            || message.from_id.user_id != targetUserId) continue;
+
+                                    String key = chatId + "_" + message.id;
+                                    if (loadedMessageKeys.add(key)) {
+                                        message.dialog_id = -chatId;
+                                        allMessages.add(message);
+                                        addedNew[0] = true;
+                                    }
+                                    oldestId = Math.min(oldestId, message.id);
+                                }
+                                if (oldestId != Integer.MAX_VALUE) {
+                                    chatOffsets.put(chatId, oldestId);
+                                }
+                                if (msgs.messages.size() < 20) {
+                                    finishedChats.add(chatId);
+                                }
+                            }
                         }
-                        if (oldestId != Integer.MAX_VALUE) chatOffsets.put(chatId, oldestId);
-                        if (msgs.messages.size() < 20) finishedChats.add(chatId);
-                    }
-                }
-                pendingCount[0]--;
-                if (pendingCount[0] == 0) finishPage(addedNew[0]);
-            }));
+
+                        activeCount[0]--;
+                        completedCount[0]++;
+                        if (completedCount[0] >= pendingChats.size()) {
+                            finishPage(addedNew[0]);
+                        } else {
+                            dispatchChatSearches(pendingChats, nextIndex, activeCount, completedCount, addedNew);
+                        }
+                    }));
+        }
+
+        if (completedCount[0] >= pendingChats.size()) {
+            finishPage(addedNew[0]);
         }
     }
 
