@@ -40,6 +40,7 @@ import org.telegram.messenger.KeywordMessageFilterManager;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MangoUpdateManager;
 import org.telegram.messenger.MangoGroupBroadcastTaskStore;
+import org.telegram.messenger.MangoGroupBroadcastManager;
 import org.telegram.messenger.MangoSettings;
 import org.telegram.messenger.MangoLegacySettings;
 import org.telegram.messenger.MangoFeatureRegistry;
@@ -1488,45 +1489,20 @@ private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups
 }
 
 private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int minSec, int maxSec) {
-    if (TextUtils.isEmpty(text) || targetGroups == null || targetGroups.isEmpty()) {
-        return;
-    }
-    SendMessagesHelper sendMessagesHelper = SendMessagesHelper.getInstance(currentAccount);
-    ArrayList<String> targetNames = new ArrayList<>();
-    for (long dialogId : targetGroups) {
-        TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
-        targetNames.add(chat == null ? "群组" : chat.title);
-    }
-    final long taskId = MangoGroupBroadcastTaskStore.create(currentAccount, text, targetNames);
-
-    // Keep the existing randomized interval and SendMessagesHelper payload unchanged.
-    org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
-        long currentDelay = 0;
-        int diff = (maxSec - minSec) * 1000;
-        if (diff <= 0) diff = 10000;
-
-        for (int i = 0, size = targetGroups.size(); i < size; i++) {
-            final long dialogId = targetGroups.get(i);
-            long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L);
-            currentDelay += randomDelay;
-            final long finalDelay = currentDelay;
-
-            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
-                try {
-                    sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(
-                            text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false
-                    ));
-                    MangoGroupBroadcastTaskStore.markResult(currentAccount, taskId, true);
-                } catch (Throwable error) {
-                    FileLog.e(error);
-                    MangoGroupBroadcastTaskStore.markResult(currentAccount, taskId, false);
-                }
-            }, finalDelay);
-        }
-    });
-    Toast.makeText(getParentActivity(), "已创建群发任务，共 " + targetGroups.size() + " 个群组", Toast.LENGTH_LONG).show();
-    showBroadcastTasksDialog();
-}
+     if (TextUtils.isEmpty(text) || targetGroups == null || targetGroups.isEmpty()) return;
+     ArrayList<String> targetNames = new ArrayList<>();
+     for (long dialogId : targetGroups) {
+         TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
+         targetNames.add(chat == null ? "群组" : chat.title);
+     }
+     long taskId = MangoGroupBroadcastManager.start(currentAccount, text, targetGroups, targetNames, minSec, maxSec);
+     if (taskId == 0) {
+         Toast.makeText(getParentActivity(), "群发任务创建失败", Toast.LENGTH_SHORT).show();
+         return;
+     }
+     Toast.makeText(getParentActivity(), "已创建群发任务，共 " + targetGroups.size() + " 个群组", Toast.LENGTH_LONG).show();
+     showBroadcastTasksDialog();
+ }
 
     private void showBroadcastTasksDialog() {
         Context context = getParentActivity();
