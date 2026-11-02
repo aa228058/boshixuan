@@ -1380,7 +1380,7 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
 
             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
                 sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(
-                    text, dialogId, null, null, null, true, null, null, null, true, 0, 0, randomId, false
+                    text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false
                 ));
             }, finalDelay);
         }
