@@ -12072,7 +12072,13 @@ private void showRealActivityPage(boolean display) {
             if (listHolder[0] == null) {
                 mActivityOverlay.removeAllViews();
                 if ((messages == null || messages.isEmpty()) && !hasMore) {
-                    mActivityOverlay.addView(createActivityEmptyPreview(),
+                    android.widget.TextView emptyState = new android.widget.TextView(getContext());
+                    emptyState.setText("近期没有发言");
+                    emptyState.setGravity(android.view.Gravity.CENTER);
+                    emptyState.setTextSize(14);
+                    emptyState.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(
+                            org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                    mActivityOverlay.addView(emptyState,
                             org.telegram.ui.Components.LayoutHelper.createFrame(
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
