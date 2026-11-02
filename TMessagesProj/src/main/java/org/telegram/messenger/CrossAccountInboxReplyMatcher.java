@@ -25,7 +25,7 @@ public final class CrossAccountInboxReplyMatcher {
 
         MessagesController controller = MessagesController.getInstance(account);
         TLRPC.Chat chat = controller.getChat(-dialogId);
-        if (chat == null || chat.channel && !chat.megagroup) {
+        if (chat == null || ChatObject.isChannel(chat) && !chat.megagroup && !chat.gigagroup) {
             // Include basic groups and megagroups, but not broadcast channels.
             return false;
         }
