@@ -65,11 +65,10 @@ public class NotificationsService extends Service {
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 if (wm != null) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Mango:PushWifiLock");
-                    } else {
-                        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "Mango:PushWifiLock");
-                    }
+                    // A normal full Wi-Fi lock is sufficient to keep the radio awake
+                    // for the background connection. HIGH_PERF adds sustained radio
+                    // performance/power pressure without improving message delivery.
+                    wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "Mango:PushWifiLock");
                     wifiLock.setReferenceCounted(false);
                     wifiLock.acquire();
                 }
