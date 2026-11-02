@@ -20,6 +20,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.CrossAccountInboxStore;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MangoSettings;
 import org.telegram.messenger.MessageObject;
@@ -48,7 +49,7 @@ import java.util.HashSet;
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
         NotificationCenter.NotificationCenterDelegate {
     public static final String SETTING_KEY = "cross_account_inbox";
-    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3;
+    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
     private final ArrayList<Integer> observedAccounts = new ArrayList<>();
@@ -59,6 +60,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean cachedUnreadOnly;
     private boolean cachedHasMore;
     private boolean unreadOnly;
+    private boolean replyInbox;
     private boolean active;
     private boolean pendingSingleDialogRefresh;
     private int pendingAccount = -1;
@@ -367,6 +369,33 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
+        items.add(UItem.asButton(ITEM_REPLY_MODE, R.drawable.msg_reply,
+                replyInbox ? "返回会话列表" : "查看跨账号回复收件箱"));
+        if (replyInbox) {
+            ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
+            int shown = 0;
+            for (CrossAccountInboxStore.Entry reply : replies) {
+                if (unreadOnly && reply.handled) continue;
+                String accountLabel = "账号 " + (reply.account + 1);
+                String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
+                String detail = accountLabel
+                        + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
+                        + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
+                        + "\\n" + reply.preview;
+                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_message, title);
+                row.subtext = detail;
+                row.object = reply;
+                items.add(row);
+                UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.msg_check,
+                        reply.handled ? "标记为未处理" : "标记为已处理");
+                handled.object = reply;
+                items.add(handled);
+                shown++;
+            }
+            if (shown == 0) items.add(UItem.asShadow(unreadOnly ? "没有未处理的回复" : "暂时没有符合条件的群组回复"));
+            items.add(UItem.asSwitch(ITEM_UNREAD, "只显示未处理").setChecked(unreadOnly));
+            return;
+        }
         items.add(UItem.asSwitch(ITEM_UNREAD, getString(R.string.MangoUnifiedUnread)).setChecked(unreadOnly));
         if (snapshotDirty || cachedUnreadOnly != unreadOnly) {
             rebuildSnapshot();
@@ -656,10 +685,25 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == ITEM_UNREAD) {
-            unreadOnly = !unreadOnly;
-            snapshotDirty = true;
+        if (item.id == ITEM_REPLY_MODE) {
+            replyInbox = !replyInbox;
             listView.adapter.update(true);
+        } else if (item.id == ITEM_REPLY_ROW && item.object instanceof CrossAccountInboxStore.Entry) {
+            openReply((CrossAccountInboxStore.Entry) item.object);
+        } else if (item.id == ITEM_REPLY_HANDLED && item.object instanceof CrossAccountInboxStore.Entry) {
+            CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
+            CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
+                    reply.messageId, !reply.handled);
+            AndroidUtilities.runOnUIThread(() -> {
+                if (active && listView != null) listView.adapter.update(true);
+            }, 250);
+        } else if (item.id == ITEM_UNREAD) {
+            unreadOnly = !unreadOnly;
+            if (replyInbox) listView.adapter.update(true);
+            else {
+                snapshotDirty = true;
+                listView.adapter.update(true);
+            }
         } else if (item.id == ITEM_MORE) {
             for (int account : UserConfig.getActivatedAccounts()) {
                 MessagesController controller = MessagesController.getInstance(account);
@@ -671,6 +715,29 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             snapshotDirty = true;
         } else if (item.id == ITEM_MESSAGE && item.object instanceof Entry) {
             open((Entry) item.object);
+        }
+    }
+
+    private void openReply(CrossAccountInboxStore.Entry row) {
+        UserConfig config = UserConfig.getInstance(row.account);
+        if (!config.isClientActivated() || config.getClientUserId() != row.ownerId || getParentActivity() == null) {
+            if (listView != null) listView.adapter.update(false);
+            return;
+        }
+        Bundle args = new Bundle();
+        if (row.dialogId < 0) args.putLong("chat_id", -row.dialogId);
+        else args.putLong("user_id", row.dialogId);
+        MessagesController controller = MessagesController.getInstance(row.account);
+        if (!controller.checkCanOpenChat(args, this)) return;
+        ChatActivity chat = new ChatActivity(args);
+        chat.setCurrentAccount(row.account);
+        chat.setOpenAtMessageId(row.messageId);
+        if (getParentActivity() instanceof LaunchActivity) {
+            LaunchActivity activity = (LaunchActivity) getParentActivity();
+            activity.switchToAccount(row.account, true);
+            activity.presentFragment(chat);
+        } else {
+            presentFragment(chat);
         }
     }
 
