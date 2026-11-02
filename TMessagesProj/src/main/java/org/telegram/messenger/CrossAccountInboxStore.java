@@ -32,6 +32,7 @@ public final class CrossAccountInboxStore {
         public final long dialogId;
         public final int messageId;
         public final int replyToMessageId;
+        public final int messageType;
         public final int date;
         public final long senderId;
         public final String groupTitle;
@@ -40,13 +41,14 @@ public final class CrossAccountInboxStore {
         public final boolean handled;
 
         private Entry(int account, long ownerId, long dialogId, int messageId,
-                      int replyToMessageId, int date, long senderId,
+                      int replyToMessageId, int messageType, int date, long senderId,
                       String groupTitle, String senderName, String preview, boolean handled) {
             this.account = account;
             this.ownerId = ownerId;
             this.dialogId = dialogId;
             this.messageId = messageId;
             this.replyToMessageId = replyToMessageId;
+            this.messageType = messageType;
             this.date = date;
             this.senderId = senderId;
             this.groupTitle = groupTitle;
@@ -105,12 +107,13 @@ public final class CrossAccountInboxStore {
         final long ownerId = config.getClientUserId();
         final int messageId = message.getId();
         final int replyToMessageId = reply.reply_to_msg_id;
+        final int messageType = message.messageOwner.media == null ? 1 : 2;
         final int date = message.messageOwner.date;
         final String savedGroupTitle = chat.title == null ? "" : chat.title;
         final String savedSenderName = senderName;
         final String savedPreview = preview;
         storageQueue.postRunnable(() -> persistReply(account, ownerId, dialogId, messageId,
-                replyToMessageId, date, senderId, savedGroupTitle, savedSenderName, savedPreview));
+                replyToMessageId, messageType, date, senderId, savedGroupTitle, savedSenderName, savedPreview));
     }
 
     /** Collect replies from a regular history page, allowing exact targets in the same page. */
@@ -124,7 +127,7 @@ public final class CrossAccountInboxStore {
     }
 
     private static void persistReply(int account, long ownerId, long dialogId, int messageId,
-                                     int replyToMessageId, int date, long senderId,
+                                     int replyToMessageId, int messageType, int date, long senderId,
                                      String groupTitle, String senderName, String preview) {
         SharedPreferences prefs = preferences(account, ownerId);
         JSONArray old = readArray(prefs);
@@ -149,6 +152,7 @@ public final class CrossAccountInboxStore {
             record.put("dialog_id", dialogId);
             record.put("message_id", messageId);
             record.put("reply_to_message_id", replyToMessageId);
+            record.put("message_type", messageType);
             record.put("date", date);
             record.put("sender_id", senderId);
             record.put("group_title", groupTitle);
@@ -199,8 +203,8 @@ public final class CrossAccountInboxStore {
                 }
                 result.add(new Entry(account, config.getClientUserId(),
                         item.optLong("dialog_id"), item.optInt("message_id"),
-                        item.optInt("reply_to_message_id"), item.optInt("date"),
-                        item.optLong("sender_id"), item.optString("group_title"),
+                        item.optInt("reply_to_message_id"), item.optInt("message_type", 1),
+                        item.optInt("date"), item.optLong("sender_id"), item.optString("group_title"),
                         item.optString("sender_name"), item.optString("preview"),
                         item.optBoolean("handled", false)));
             }

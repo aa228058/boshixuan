@@ -56,7 +56,7 @@ import java.util.HashSet;
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
         NotificationCenter.NotificationCenterDelegate {
     public static final String SETTING_KEY = "cross_account_inbox";
-    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7, ITEM_SCOPE = 8;
+    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7, ITEM_SCOPE = 8;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
     private ItemTouchHelper replySwipeHelper;
@@ -68,7 +68,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean cachedUnreadOnly;
     private boolean cachedHasMore;
     private boolean unreadOnly;
-    private boolean replyInbox;
     private boolean active;
     private boolean pendingSingleDialogRefresh;
     private int pendingAccount = -1;
@@ -124,7 +123,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             @Override
             public int getSwipeDirs(@NonNull RecyclerView recyclerView,
                                     @NonNull RecyclerView.ViewHolder viewHolder) {
-                if (!replyInbox || viewHolder.getAdapterPosition() == RecyclerView.NO_POSITION) return 0;
+                if (viewHolder.getAdapterPosition() == RecyclerView.NO_POSITION) return 0;
                 UItem item = listView.adapter.getItem(viewHolder.getAdapterPosition());
                 return item != null && item.id == ITEM_REPLY_ROW
                         ? super.getSwipeDirs(recyclerView, viewHolder) : 0;
@@ -220,17 +219,12 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     @Override public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.crossAccountInboxUpdated) {
             // Store writes are serialized; this event is emitted only after persistence.
-            if (replyInbox) queueRefresh();
+            queueRefresh();
             return;
         }
         if (id == NotificationCenter.didReceiveNewMessages) {
-            // The reply inbox is backed by CrossAccountInboxStore, not the dialog-row
-            // snapshot. Rebuild it after the store's queued write has had time to run;
-            // applying a targeted dialog-row diff here would update the wrong adapter rows.
-            if (replyInbox) {
-                queueRefresh();
-                return;
-            }
+            // CrossAccountInboxStore posts a separate update after persistence; the
+            // regular dialog summary can still use its targeted row update below.
             // New-message notifications identify their dialog. Updating one snapshot
             // row avoids walking and sorting every dialog for high-traffic accounts.
             if (args != null && args.length > 2 && args[0] instanceof Long
@@ -254,16 +248,12 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             return;
         }
         if (id == NotificationCenter.messagesDeleted) {
-            if (replyInbox) {
-                // Telegram supplies the deleted message ids and, for chat dialogs,
-                // the owning chat/channel id. Message ids are scoped to a dialog;
-                // only purge persisted replies when that dialog identity is known.
-                if (args != null && args.length > 1 && args[0] instanceof ArrayList
-                        && args[1] instanceof Long && (Long) args[1] != 0) {
-                    CrossAccountInboxStore.removeDeletedMessages(account, -((Long) args[1]),
-                            (ArrayList<Integer>) args[0]);
-                }
-                return;
+            // Remove captured replies for this exact dialog as well as refreshing
+            // the ordinary dialog summary below.
+            if (args != null && args.length > 1 && args[0] instanceof ArrayList
+                    && args[1] instanceof Long && (Long) args[1] != 0) {
+                CrossAccountInboxStore.removeDeletedMessages(account, -((Long) args[1]),
+                        (ArrayList<Integer>) args[0]);
             }
             // Channel deletions carry the owning channel id and can refresh one row.
             // Other deletion paths omit a dialog id, so rebuild only this account.
@@ -437,51 +427,44 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        items.add(UItem.asButton(ITEM_REPLY_MODE, R.drawable.menu_reply,
-                replyInbox ? "返回会话列表" : "查看跨账号回复收件箱"));
-        if (replyInbox) {
-            items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
-                    "汇总范围：" + getInboxScopeLabel()));
-            java.util.HashSet<Integer> selectedAccounts = getSelectedInboxAccounts();
-            ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
-            int shown = 0;
-            for (CrossAccountInboxStore.Entry reply : replies) {
-                if (!selectedAccounts.contains(reply.account)) continue;
-                if (unreadOnly && reply.handled) continue;
-                String accountLabel = "账号 " + (reply.account + 1);
-                String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
-                String detail = accountLabel
-                        + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
-                        + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
-                        + "\\n" + reply.preview;
-                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
-                row.subtext = detail;
-                row.object = reply;
-                items.add(row);
-                UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_retry,
-                        "快捷回复");
-                quickReply.object = reply;
-                items.add(quickReply);
-                UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.mini_checklist_done,
-                        reply.handled ? "标记为未处理" : "标记为已处理");
-                handled.object = reply;
-                items.add(handled);
-                shown++;
-            }
-            if (shown == 0) items.add(UItem.asShadow(unreadOnly ? "没有未处理的回复" : "暂时没有符合条件的群组回复"));
-            items.add(UItem.asSwitch(ITEM_UNREAD, "只显示未处理").setChecked(unreadOnly));
-            return;
-        }
+        // Captured group replies are embedded in the original cross-account summary.
+        items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
+                "回复筛选 · " + getReplyFilterSummary()));
         items.add(UItem.asSwitch(ITEM_UNREAD, getString(R.string.MangoUnifiedUnread)).setChecked(unreadOnly));
+
+        ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
+        int shownReplies = 0;
+        for (CrossAccountInboxStore.Entry reply : replies) {
+            if (!matchesReplyFilters(reply) || unreadOnly && reply.handled) continue;
+            String accountLabel = "账号 " + (reply.account + 1);
+            String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
+            String typeLabel = reply.messageType == 2 ? "媒体回复" : "文字回复";
+            String detail = accountLabel + " · " + typeLabel
+                    + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
+                    + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
+                    + "\\n" + reply.preview;
+            UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
+            row.subtext = detail;
+            row.object = reply;
+            items.add(row);
+            UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_send, "快捷回复");
+            quickReply.object = reply;
+            items.add(quickReply);
+            UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.mini_checklist_done,
+                    reply.handled ? "标记为未处理" : "标记为已处理");
+            handled.object = reply;
+            items.add(handled);
+            shownReplies++;
+        }
+        if (shownReplies == 0) items.add(UItem.asShadow("当前筛选条件下没有符合条件的群组回复"));
+
         if (snapshotDirty || cachedUnreadOnly != unreadOnly) {
             rebuildSnapshot();
         } else if (!dirtyAccounts.isEmpty()) {
             rebuildDirtySnapshots();
         }
         if (cachedRows.isEmpty()) items.add(UItem.asShadow(getString(R.string.MangoUnifiedEmpty)));
-        for (Entry row : cachedRows) {
-            items.add(createRowItem(row));
-        }
+        for (Entry row : cachedRows) items.add(createRowItem(row));
         if (cachedHasMore) items.add(UItem.asButton(ITEM_MORE, R.drawable.msg_retry, getString(R.string.MangoUnifiedLoadMore)));
     }
 
@@ -761,11 +744,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == ITEM_REPLY_MODE) {
-            replyInbox = !replyInbox;
-            listView.adapter.update(true);
-        } else if (item.id == ITEM_SCOPE) {
-            showInboxScopePicker();
+        if (item.id == ITEM_SCOPE) {
+            showInboxFilterMenu();
         } else if (item.id == ITEM_REPLY_ROW && item.object instanceof CrossAccountInboxStore.Entry) {
             openReply((CrossAccountInboxStore.Entry) item.object);
         } else if (item.id == ITEM_REPLY_SEND && item.object instanceof CrossAccountInboxStore.Entry) {
@@ -776,11 +756,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     reply.messageId, !reply.handled);
         } else if (item.id == ITEM_UNREAD) {
             unreadOnly = !unreadOnly;
-            if (replyInbox) listView.adapter.update(true);
-            else {
-                snapshotDirty = true;
-                listView.adapter.update(true);
-            }
+            snapshotDirty = true;
+            listView.adapter.update(true);
         } else if (item.id == ITEM_MORE) {
             for (int account : UserConfig.getActivatedAccounts()) {
                 MessagesController controller = MessagesController.getInstance(account);
@@ -796,6 +773,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private static final String INBOX_SCOPE_KEY = "cross_account_inbox_scope_accounts";
+    private static final String INBOX_GROUPS_KEY = "cross_account_inbox_scope_groups";
+    private static final String INBOX_TYPE_KEY = "cross_account_inbox_reply_type";
 
     private java.util.HashSet<Integer> getSelectedInboxAccounts() {
         java.util.HashSet<Integer> active = new java.util.HashSet<>();
@@ -827,7 +806,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         return selected.size() == activeCount ? "全部账号" : selected.size() + "/" + activeCount + " 个账号";
     }
 
-    private void showInboxScopePicker() {
+    private void showInboxAccountPicker() {
         if (getParentActivity() == null) return;
         int[] accounts = UserConfig.getActivatedAccounts();
         if (accounts.length == 0) return;
@@ -865,6 +844,98 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     String savedScope = count == accounts.length ? "" : value.toString();
                     ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
                             .edit().putString(INBOX_SCOPE_KEY, savedScope).apply();
+                    if (active && listView != null) listView.adapter.update(true);
+                }).show();
+    }
+
+    private void showInboxFilterMenu() {
+        if (getParentActivity() == null) return;
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("回复筛选条件")
+                .setItems(new CharSequence[]{"选择账号范围", "选择群组范围", "选择回复类型"},
+                        (dialog, which) -> {
+                            if (which == 0) showInboxAccountPicker();
+                            else if (which == 1) showInboxGroupPicker();
+                            else showInboxTypePicker();
+                        }).show();
+    }
+
+    private java.util.HashSet<String> getSelectedInboxGroups() {
+        return new java.util.HashSet<>(ApplicationLoader.applicationContext
+                .getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
+                .getStringSet(INBOX_GROUPS_KEY, new java.util.HashSet<>()));
+    }
+
+    private int getReplyTypeFilter() {
+        return ApplicationLoader.applicationContext.getSharedPreferences(
+                "cross_account_inbox_ui", Context.MODE_PRIVATE).getInt(INBOX_TYPE_KEY, 0);
+    }
+
+    private String getReplyFilterSummary() {
+        java.util.HashSet<String> groups = getSelectedInboxGroups();
+        int type = getReplyTypeFilter();
+        String groupLabel = groups.isEmpty() ? "全部群组" : groups.size() + " 个群组";
+        String typeLabel = type == 1 ? "文字" : type == 2 ? "媒体" : "全部类型";
+        return getInboxScopeLabel() + " · " + groupLabel + " · " + typeLabel;
+    }
+
+    private boolean matchesReplyFilters(CrossAccountInboxStore.Entry reply) {
+        if (!getSelectedInboxAccounts().contains(reply.account)) return false;
+        java.util.HashSet<String> groups = getSelectedInboxGroups();
+        if (!groups.isEmpty() && !groups.contains(Long.toString(reply.dialogId))) return false;
+        int type = getReplyTypeFilter();
+        return type == 0 || reply.messageType == type;
+    }
+
+    private void showInboxGroupPicker() {
+        if (getParentActivity() == null) return;
+        java.util.HashSet<Integer> accounts = getSelectedInboxAccounts();
+        java.util.HashMap<String, String> labelsById = new java.util.HashMap<>();
+        for (CrossAccountInboxStore.Entry entry : CrossAccountInboxStore.getAllEntries()) {
+            if (accounts.contains(entry.account)) {
+                labelsById.put(Long.toString(entry.dialogId),
+                        TextUtils.isEmpty(entry.groupTitle) ? "群组消息" : entry.groupTitle);
+            }
+        }
+        if (labelsById.isEmpty()) {
+            new AlertDialog.Builder(getParentActivity()).setMessage("当前账号范围内还没有可筛选的群组回复。")
+                    .setPositiveButton(android.R.string.ok, null).show();
+            return;
+        }
+        java.util.ArrayList<String> ids = new java.util.ArrayList<>(labelsById.keySet());
+        ids.sort((left, right) -> labelsById.get(left).compareToIgnoreCase(labelsById.get(right)));
+        CharSequence[] labels = new CharSequence[ids.size()];
+        boolean[] checked = new boolean[ids.size()];
+        java.util.HashSet<String> selected = getSelectedInboxGroups();
+        for (int i = 0; i < ids.size(); i++) {
+            labels[i] = labelsById.get(ids.get(i));
+            checked[i] = selected.isEmpty() || selected.contains(ids.get(i));
+        }
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("选择群组（默认全部）")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    java.util.HashSet<String> values = new java.util.HashSet<>();
+                    for (int i = 0; i < ids.size(); i++) if (checked[i]) values.add(ids.get(i));
+                    if (values.size() == ids.size()) values.clear();
+                    ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
+                            .edit().putStringSet(INBOX_GROUPS_KEY, values).apply();
+                    if (active && listView != null) listView.adapter.update(true);
+                }).show();
+    }
+
+    private void showInboxTypePicker() {
+        if (getParentActivity() == null) return;
+        final int[] selected = {getReplyTypeFilter()};
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("回复类型")
+                .setSingleChoiceItems(new CharSequence[]{"全部类型", "文字回复", "媒体回复"}, selected[0],
+                        (dialog, which) -> selected[0] = which)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
+                            .edit().putInt(INBOX_TYPE_KEY, selected[0]).apply();
                     if (active && listView != null) listView.adapter.update(true);
                 }).show();
     }
