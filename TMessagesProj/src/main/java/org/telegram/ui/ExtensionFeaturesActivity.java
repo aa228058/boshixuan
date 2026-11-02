@@ -1318,56 +1318,106 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(8), AndroidUtilities.dp(20), AndroidUtilities.dp(4));
         TextView intro = new TextView(context);
-        intro.setText("找到 " + ids.size() + " 个可发送消息的群组。默认全选，可取消不需要发送的群组。");
-        intro.setTextSize(14); intro.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        intro.setText("找到 " + ids.size() + " 个可发送消息的群组，可搜索群名并批量选择。");
+        intro.setTextSize(14);
+        intro.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
         content.addView(intro, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 8));
+
+        EditTextBoldCursor search = new EditTextBoldCursor(context);
+        search.setTextSize(14);
+        search.setSingleLine(true);
+        search.setHintText("搜索群组名称");
+        search.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_AUTO_CORRECT);
+        search.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_dialogBackgroundGray, resourceProvider)));
+        search.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(10), AndroidUtilities.dp(12), AndroidUtilities.dp(10));
+        content.addView(search, LayoutHelper.createLinear(-1, 44, 0, 4, 0, 8));
+
         android.widget.CheckBox all = new android.widget.CheckBox(context);
-        all.setText("全选群组"); all.setTextSize(14); all.setChecked(true);
+        all.setText("全选当前列表");
+        all.setTextSize(14);
         all.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
-        content.addView(all, LayoutHelper.createLinear(-1, 44));
+        content.addView(all, LayoutHelper.createLinear(-1, 42));
+
         ScrollView scroll = new ScrollView(context);
-        LinearLayout rows = new LinearLayout(context); rows.setOrientation(LinearLayout.VERTICAL);
-        ArrayList<android.widget.CheckBox> checks = new ArrayList<>();
-        for (String name : names) {
-            android.widget.CheckBox check = new android.widget.CheckBox(context);
-            check.setText(name); check.setTextSize(14); check.setChecked(true);
-            check.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
-            rows.addView(check, LayoutHelper.createLinear(-1, 44)); checks.add(check);
-        }
+        scroll.setFillViewport(false);
+        LinearLayout rows = new LinearLayout(context);
+        rows.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(rows);
-        int maxListHeight = Math.min(AndroidUtilities.dp(320), Math.max(AndroidUtilities.dp(120), AndroidUtilities.displaySize.y / 3));
-        content.addView(scroll, LayoutHelper.createLinear(-1, Math.min(maxListHeight, AndroidUtilities.dp(44) * checks.size())));
+        int maxListHeight = Math.min(AndroidUtilities.dp(360), Math.max(AndroidUtilities.dp(140), AndroidUtilities.displaySize.y / 2));
+        content.addView(scroll, LayoutHelper.createLinear(-1, maxListHeight));
+
         TextView count = new TextView(context);
-        count.setText("已选择 " + checks.size() + " / " + checks.size() + " 个群组");
-        count.setTextSize(12); count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
-        content.addView(count, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+        count.setTextSize(12);
+        count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        content.addView(count, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 0));
+
+        HashSet<Long> selectedIds = new HashSet<>(ids);
         final boolean[] updatingSelection = {false};
-        Runnable refresh = () -> {
-            int selected = 0;
-            for (android.widget.CheckBox check : checks) if (check.isChecked()) selected++;
-            count.setText("已选择 " + selected + " / " + checks.size() + " 个群组");
+        Runnable renderRows = () -> {
+            String query = search.getText() == null ? "" : search.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
+            rows.removeAllViews();
+            ArrayList<Long> visibleIds = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i++) {
+                String name = names.get(i);
+                if (!query.isEmpty() && (name == null || !name.toLowerCase(java.util.Locale.ROOT).contains(query))) continue;
+                long id = ids.get(i);
+                visibleIds.add(id);
+                android.widget.CheckBox check = new android.widget.CheckBox(context);
+                check.setText(name == null || name.isEmpty() ? "未命名群组" : name);
+                check.setTextSize(14);
+                check.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+                check.setMinHeight(AndroidUtilities.dp(44));
+                check.setPadding(AndroidUtilities.dp(2), 0, AndroidUtilities.dp(4), 0);
+                check.setChecked(selectedIds.contains(id));
+                check.setOnCheckedChangeListener((button, checked) -> {
+                    if (checked) selectedIds.add(id); else selectedIds.remove(id);
+                    updateSelection.run();
+                });
+                rows.addView(check, LayoutHelper.createLinear(-1, -2));
+            }
             updatingSelection[0] = true;
-            all.setChecked(selected == checks.size());
+            boolean allVisibleSelected = !visibleIds.isEmpty();
+            for (long id : visibleIds) if (!selectedIds.contains(id)) { allVisibleSelected = false; break; }
+            all.setChecked(allVisibleSelected);
             updatingSelection[0] = false;
+            count.setText("已选择 " + selectedIds.size() + " / " + ids.size() + " 个群组 · 当前显示 " + visibleIds.size() + " 个");
+            if (visibleIds.isEmpty()) {
+                TextView empty = new TextView(context);
+                empty.setText("没有找到匹配的群组");
+                empty.setTextSize(13);
+                empty.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+                rows.addView(empty, LayoutHelper.createLinear(-1, 48, 0, 8, 0, 0));
+            }
         };
-        for (android.widget.CheckBox check : checks) {
-            check.setOnCheckedChangeListener((button, checked) -> {
-                if (!updatingSelection[0]) refresh.run();
-            });
-        }
+        Runnable[] renderHolder = new Runnable[1];
+        Runnable updateSelection = () -> {
+            if (!updatingSelection[0]) renderHolder[0].run();
+        };
+        renderHolder[0] = renderRows;
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { renderHolder[0].run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
         all.setOnCheckedChangeListener((button, checked) -> {
             if (updatingSelection[0]) return;
-            updatingSelection[0] = true;
-            for (android.widget.CheckBox item : checks) item.setChecked(checked);
-            updatingSelection[0] = false;
-            refresh.run();
+            String query = search.getText() == null ? "" : search.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
+            for (int i = 0; i < ids.size(); i++) {
+                String name = names.get(i);
+                if (query.isEmpty() || (name != null && name.toLowerCase(java.util.Locale.ROOT).contains(query))) {
+                    if (checked) selectedIds.add(ids.get(i)); else selectedIds.remove(ids.get(i));
+                }
+            }
+            renderHolder[0].run();
         });
+        renderHolder[0].run();
+
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(context).setTitle("选择群组").setView(content)
                 .setPositiveButton(getString(R.string.OK), null)
                 .setNegativeButton(getString(R.string.Cancel), null).create();
         dialog.setOnShowListener(d -> dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             ArrayList<Long> selected = new ArrayList<>();
-            for (int i = 0; i < checks.size(); i++) if (checks.get(i).isChecked()) selected.add(ids.get(i));
+            for (long id : ids) if (selectedIds.contains(id)) selected.add(id);
             if (selected.isEmpty()) {
                 Toast.makeText(context, "请至少选择一个群组", Toast.LENGTH_SHORT).show();
                 return;
