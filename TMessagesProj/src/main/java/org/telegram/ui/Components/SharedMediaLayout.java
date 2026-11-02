@@ -11931,15 +11931,18 @@ private void showRealActivityPage() {
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
         mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
-        // Keep the profile tab strip above the activity content so other tabs remain clickable.
-        addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(
+    }
+    // Attach activity content to the currently active media page, below the
+    // persistent profile tab strip. Re-parent it after page swaps so returning
+    // to Activity always displays the content in the active page.
+    if (mediaPages[0] != null && mActivityOverlay.getParent() != mediaPages[0]) {
+        if (mActivityOverlay.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) mActivityOverlay.getParent()).removeView(mActivityOverlay);
+        }
+        mediaPages[0].addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 android.view.Gravity.TOP, 0, 48, 0, 0));
-    }
-    // Keep the profile tab strip above the activity overlay so it remains clickable.
-    if (scrollSlidingTextTabStrip != null) {
-        bringChildToFront(scrollSlidingTextTabStrip);
     }
     mActivityOverlay.setVisibility(android.view.View.VISIBLE);
     mActivityOverlay.removeAllViews();
