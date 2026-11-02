@@ -1,6 +1,9 @@
 name: Build Boshixuan APK
 
 on:
+  push:
+    branches:
+      - release-build-20261102
   workflow_dispatch:
 
 permissions:
