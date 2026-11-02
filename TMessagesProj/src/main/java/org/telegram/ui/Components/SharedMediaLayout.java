@@ -6789,7 +6789,11 @@ if (id == TAB_MANGO_ACTIVITY) {
             final ArrayList<Pair<Integer, CharSequence>> tabs = new ArrayList<>();
 
 if (!isStoriesView()) {
-    tabs.add(new Pair(TAB_MANGO_ACTIVITY, "活动"));
+    // Activity is a contact-profile feature only; never expose it in group,
+    // channel, or bot profiles.
+    if (DialogObject.isUserDialog(dialog_id) && !isBot()) {
+        tabs.add(new Pair(TAB_MANGO_ACTIVITY, "活动"));
+    }
     if (hasGifts) {
         tabs.add(new Pair(TAB_GIFTS, TextUtils.concat(getString(R.string.ProfileGifts), giftsContainer.getLastEmojis(null))));
         giftsLastHash = giftsContainer.getLastEmojisHash();
@@ -12023,7 +12027,8 @@ private void showRealActivityPage() {
 }
 
 private void showRealActivityPage(boolean display) {
-    if (getContext() == null || profileActivity == null) return;
+    if (getContext() == null || profileActivity == null
+            || !DialogObject.isUserDialog(dialog_id) || isBot()) return;
 
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
