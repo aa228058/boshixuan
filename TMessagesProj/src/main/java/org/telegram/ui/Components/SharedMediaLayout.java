@@ -12025,6 +12025,10 @@ private void showRealActivityPage(boolean display) {
                 }
 
                 if (messages == null || messages.isEmpty()) {
+                    // A retry can return another empty partial page while more
+                    // common groups are still being scanned. Replace the previous
+                    // prompt instead of stacking duplicate full-screen views.
+                    mActivityOverlay.removeAllViews();
                     android.widget.TextView loadingMoreState = new android.widget.TextView(getContext());
                     loadingMoreState.setText("暂时没有匹配消息，点击此处继续加载");
                     loadingMoreState.setGravity(android.view.Gravity.CENTER);
