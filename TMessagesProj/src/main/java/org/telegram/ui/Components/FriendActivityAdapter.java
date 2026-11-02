@@ -73,6 +73,9 @@ public class FriendActivityAdapter extends BaseAdapter {
         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-msg.dialog_id);
         if (chat != null) drawable.setInfo(chat);
         avatar.setImageDrawable(drawable);
+        if (chat != null && chat.photo != null) {
+            avatar.setImage(ImageLocation.getForChat(chat, ImageLocation.TYPE_CHAT), "50_50", drawable, chat);
+        }
         
         LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
         avatarLp.rightMargin = AndroidUtilities.dp(12);
