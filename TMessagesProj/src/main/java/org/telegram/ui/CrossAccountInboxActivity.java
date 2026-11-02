@@ -220,6 +220,13 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
     @Override public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.didReceiveNewMessages) {
+            // The reply inbox is backed by CrossAccountInboxStore, not the dialog-row
+            // snapshot. Rebuild it after the store's queued write has had time to run;
+            // applying a targeted dialog-row diff here would update the wrong adapter rows.
+            if (replyInbox) {
+                queueRefresh();
+                return;
+            }
             // New-message notifications identify their dialog. Updating one snapshot
             // row avoids walking and sorting every dialog for high-traffic accounts.
             if (args != null && args.length > 2 && args[0] instanceof Long
