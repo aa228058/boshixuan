@@ -1390,12 +1390,14 @@ private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups
     android.widget.EditText minInput = new android.widget.EditText(context);
     minInput.setSingleLine(true); minInput.setText("5"); minInput.setHint("最小间隔");
     minInput.setInputType(InputType.TYPE_CLASS_NUMBER); minInput.setTextSize(15);
+    minInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(5)});
     minInput.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(10), AndroidUtilities.dp(8));
     minInput.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_dialogBackground, resourceProvider)));
     card.addView(minInput, LayoutHelper.createLinear(-1, 44, 0, 0, 0, 8));
     android.widget.EditText maxInput = new android.widget.EditText(context);
     maxInput.setSingleLine(true); maxInput.setText("15"); maxInput.setHint("最大间隔");
     maxInput.setInputType(InputType.TYPE_CLASS_NUMBER); maxInput.setTextSize(15);
+    maxInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(5)});
     maxInput.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(10), AndroidUtilities.dp(8));
     maxInput.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_dialogBackground, resourceProvider)));
     card.addView(maxInput, LayoutHelper.createLinear(-1, 44));
