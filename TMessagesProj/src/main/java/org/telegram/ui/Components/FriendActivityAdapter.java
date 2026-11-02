@@ -239,6 +239,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(3), AndroidUtilities.dp(10), AndroidUtilities.dp(3));
+        row.setMinimumHeight(AndroidUtilities.dp(46));
         row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_windowBackgroundWhite)));
 
         BackupImageView senderAvatar = new BackupImageView(context);
