@@ -1544,8 +1544,10 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     title.setTextSize(14);
                     title.setTypeface(AndroidUtilities.bold());
                     title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-                    String state = task.state == MangoGroupBroadcastTaskStore.SENDING ? "处理中"
-                            : task.state == MangoGroupBroadcastTaskStore.COMPLETED ? "处理完成" : "应用中断";
+                    String state = task.state == MangoGroupBroadcastTaskStore.SENDING ? "发送中"
+                            : task.state == MangoGroupBroadcastTaskStore.COMPLETED ? "已完成"
+                            : task.state == MangoGroupBroadcastTaskStore.PAUSED ? "已暂停"
+                            : task.state == MangoGroupBroadcastTaskStore.CANCELLED ? "已取消" : "应用中断";
                     title.setText(state + " · " + LocaleController.formatDateChat((int) (task.createdAt / 1000)));
                     card.addView(title, LayoutHelper.createLinear(-1, -2));
 
@@ -1582,6 +1584,57 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     preview.setMaxLines(2);
                     preview.setText(task.message);
                     card.addView(preview, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+
+                    if (task.state == MangoGroupBroadcastTaskStore.SENDING
+                            || task.state == MangoGroupBroadcastTaskStore.PAUSED
+                            || task.state == MangoGroupBroadcastTaskStore.INTERRUPTED) {
+                        LinearLayout actions = new LinearLayout(context);
+                        actions.setOrientation(LinearLayout.HORIZONTAL);
+                        actions.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+                        if (task.state == MangoGroupBroadcastTaskStore.SENDING) {
+                            TextView pause = new TextView(context);
+                            pause.setText("暂停");
+                            pause.setTextSize(13);
+                            pause.setGravity(Gravity.CENTER);
+                            pause.setTextColor(Theme.getColor(Theme.key_dialogTextLink));
+                            pause.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(8));
+                            pause.setOnClickListener(v -> {
+                                MangoGroupBroadcastManager.pause(currentAccount, task.id);
+                                this.run();
+                            });
+                            actions.addView(pause, LayoutHelper.createLinear(-2, 40));
+                        } else {
+                            TextView resume = new TextView(context);
+                            resume.setText("继续");
+                            resume.setTextSize(13);
+                            resume.setGravity(Gravity.CENTER);
+                            resume.setTextColor(Theme.getColor(Theme.key_dialogTextLink));
+                            resume.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(8));
+                            resume.setOnClickListener(v -> {
+                                if (!MangoGroupBroadcastManager.resume(currentAccount, task.id, 5, 15)) {
+                                    Toast.makeText(context, "任务无法继续，请检查任务记录", Toast.LENGTH_SHORT).show();
+                                }
+                                this.run();
+                            });
+                            actions.addView(resume, LayoutHelper.createLinear(-2, 40));
+                        }
+                        TextView cancelTask = new TextView(context);
+                        cancelTask.setText("取消任务");
+                        cancelTask.setTextSize(13);
+                        cancelTask.setGravity(Gravity.CENTER);
+                        cancelTask.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
+                        cancelTask.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(8), AndroidUtilities.dp(14), AndroidUtilities.dp(8));
+                        cancelTask.setOnClickListener(v -> new AlertDialog.Builder(context, resourceProvider)
+                                .setTitle("取消群发任务")
+                                .setMessage("取消后尚未发送的群组将不再发送，已经提交的消息不受影响。")
+                                .setNegativeButton(getString(R.string.Cancel), null)
+                                .setPositiveButton("确认取消", (d, which) -> {
+                                    MangoGroupBroadcastManager.cancel(currentAccount, task.id);
+                                    this.run();
+                                }).show());
+                        actions.addView(cancelTask, LayoutHelper.createLinear(-2, 40));
+                        card.addView(actions, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 0));
+                    }
 
                     if (!task.targetNames.isEmpty()) {
                         TextView targets = new TextView(context);
