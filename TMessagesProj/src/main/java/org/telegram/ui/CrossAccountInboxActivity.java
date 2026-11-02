@@ -15,6 +15,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -52,6 +54,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
+    private ItemTouchHelper replySwipeHelper;
     private final ArrayList<Integer> observedAccounts = new ArrayList<>();
     /** Keep a snapshot so repeated account notifications do not rebuild every row. */
     private final ArrayList<Entry> cachedRows = new ArrayList<>();
@@ -104,6 +107,44 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         content.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourceProvider));
         listView = new UniversalRecyclerView(this, this::fillItems, this::onClick, null);
         listView.setClipToPadding(false);
+        replySwipeHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0,
+                ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder source,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public int getSwipeDirs(@NonNull RecyclerView recyclerView,
+                                    @NonNull RecyclerView.ViewHolder viewHolder) {
+                if (!replyInbox || viewHolder.getAdapterPosition() == RecyclerView.NO_POSITION) return 0;
+                UItem item = listView.adapter.getItem(viewHolder.getAdapterPosition());
+                return item != null && item.id == ITEM_REPLY_ROW
+                        ? super.getSwipeDirs(recyclerView, viewHolder) : 0;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                if (position == RecyclerView.NO_POSITION || listView == null || listView.adapter == null) return;
+                UItem item = listView.adapter.getItem(position);
+                if (item == null || item.id != ITEM_REPLY_ROW
+                        || !(item.object instanceof CrossAccountInboxStore.Entry)) {
+                    listView.adapter.notifyItemChanged(position);
+                    return;
+                }
+                CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
+                // Swipe right marks handled; swipe left restores the pending state.
+                CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
+                        reply.messageId, direction == ItemTouchHelper.RIGHT);
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (active && listView != null) listView.adapter.update(true);
+                }, 250);
+            }
+        });
+        replySwipeHelper.attachToRecyclerView(listView);
         updatePadding(AndroidUtilities.navigationBarHeight);
         content.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         actionBar.setAdaptiveBackground(listView);
