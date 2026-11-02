@@ -1,5 +1,7 @@
 package org.telegram.ui.Components;
 
+import android.graphics.drawable.Drawable;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,54 +11,42 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
-import org.telegram.messenger.ImageLocation;
-import org.telegram.messenger.FileLoader;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 
 public class FriendActivityAdapter extends BaseAdapter {
 
-    private static final int VIEW_TYPE_GROUP = 0;
-    private static final int VIEW_TYPE_MESSAGE = 1;
-
     private final int currentAccount;
-    private final ArrayList<TLRPC.Message> messages;
-    private final ArrayList<ActivityRow> rows = new ArrayList<>();
+    private final ArrayList<TLRPC.Message> messages = new ArrayList<>();
+    private final ArrayList<GroupItem> groups = new ArrayList<>();
+    private final HashSet<Long> collapsedGroups = new HashSet<>();
     private final BaseFragment fragment;
 
-    private static class ActivityRow {
-        final boolean groupHeader;
+    private static class GroupItem {
         final long dialogId;
-        final TLRPC.Message message;
-        final int messageCount;
+        final ArrayList<TLRPC.Message> messages = new ArrayList<>();
 
-        private ActivityRow(boolean groupHeader, long dialogId, TLRPC.Message message, int messageCount) {
-            this.groupHeader = groupHeader;
+        GroupItem(long dialogId) {
             this.dialogId = dialogId;
-            this.message = message;
-            this.messageCount = messageCount;
-        }
-
-        static ActivityRow group(long dialogId, int count) {
-            return new ActivityRow(true, dialogId, null, count);
-        }
-
-        static ActivityRow message(TLRPC.Message message) {
-            return new ActivityRow(false, message.dialog_id, message, 0);
         }
     }
 
     public FriendActivityAdapter(int currentAccount, ArrayList<TLRPC.Message> messages, BaseFragment fragment) {
         this.currentAccount = currentAccount;
-        this.messages = new ArrayList<>();
         this.fragment = fragment;
         setMessages(messages);
     }
@@ -66,252 +56,213 @@ public class FriendActivityAdapter extends BaseAdapter {
         if (newMessages != null) {
             messages.addAll(newMessages);
         }
-        rebuildRows();
+        rebuildGroups();
         notifyDataSetChanged();
     }
 
-    private void rebuildRows() {
-        rows.clear();
-        // FriendActivityPage already sorts by group and then newest message first.
-        // Keep that order while creating exactly one header for each consecutive group.
-        LinkedHashMap<Long, ArrayList<TLRPC.Message>> grouped = new LinkedHashMap<>();
+    private void rebuildGroups() {
+        groups.clear();
+        LinkedHashMap<Long, GroupItem> grouped = new LinkedHashMap<>();
         for (TLRPC.Message message : messages) {
             if (message == null || message.dialog_id == 0) continue;
-            ArrayList<TLRPC.Message> group = grouped.get(message.dialog_id);
+            GroupItem group = grouped.get(message.dialog_id);
             if (group == null) {
-                group = new ArrayList<>();
+                group = new GroupItem(message.dialog_id);
                 grouped.put(message.dialog_id, group);
             }
-            group.add(message);
+            group.messages.add(message);
         }
-
-        for (Map.Entry<Long, ArrayList<TLRPC.Message>> entry : grouped.entrySet()) {
-            rows.add(ActivityRow.group(entry.getKey(), entry.getValue().size()));
-            for (TLRPC.Message message : entry.getValue()) {
-                rows.add(ActivityRow.message(message));
-            }
-        }
+        groups.addAll(grouped.values());
+        // Remove stale expansion state without disturbing groups that remain visible.
+        HashSet<Long> existing = new HashSet<>();
+        for (GroupItem group : groups) existing.add(group.dialogId);
+        collapsedGroups.retainAll(existing);
     }
 
     @Override
     public int getCount() {
-        return rows.size();
+        return groups.size();
     }
 
     @Override
     public Object getItem(int position) {
-        return rows.get(position);
+        return groups.get(position);
     }
 
     @Override
     public long getItemId(int position) {
-        ActivityRow row = rows.get(position);
-        return row.groupHeader ? row.dialogId : (((long) row.message.id) << 32) ^ row.dialogId;
-    }
-
-    @Override
-    public int getViewTypeCount() {
-        return 2;
-    }
-
-    @Override
-    public int getItemViewType(int position) {
-        return rows.get(position).groupHeader ? VIEW_TYPE_GROUP : VIEW_TYPE_MESSAGE;
+        return groups.get(position).dialogId;
     }
 
     @Override
     public boolean isEnabled(int position) {
-        return !rows.get(position).groupHeader;
+        return false;
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        ActivityRow row = rows.get(position);
-        if (row.groupHeader) {
-            return getGroupHeaderView(row, convertView, parent);
-        }
-        return getMessageView(row.message, convertView, parent);
-    }
-
-    private View getGroupHeaderView(ActivityRow row, View convertView, ViewGroup parent) {
+        GroupItem group = groups.get(position);
         android.content.Context context = parent.getContext();
-        LinearLayout header;
-        if (convertView instanceof LinearLayout) {
-            header = (LinearLayout) convertView;
-        } else {
-            header = new LinearLayout(context);
-            header.setOrientation(LinearLayout.HORIZONTAL);
-            header.setGravity(Gravity.CENTER_VERTICAL);
-            header.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(12), AndroidUtilities.dp(12), AndroidUtilities.dp(8));
 
-            BackupImageView avatar = new BackupImageView(context);
-            avatar.setTag("activity_group_avatar");
-            avatar.setRoundRadius(AndroidUtilities.dp(22));
-            LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(AndroidUtilities.dp(44), AndroidUtilities.dp(44));
-            avatarParams.rightMargin = AndroidUtilities.dp(12);
-            header.addView(avatar, avatarParams);
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(10),
+                AndroidUtilities.dp(12), AndroidUtilities.dp(8));
+        card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16),
+                Theme.getColor(Theme.key_windowBackgroundWhite)));
+        card.setClipToOutline(true);
 
-            LinearLayout textColumn = new LinearLayout(context);
-            textColumn.setOrientation(LinearLayout.VERTICAL);
-            textColumn.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout header = new LinearLayout(context);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, AndroidUtilities.dp(8));
 
-            TextView title = new TextView(context);
-            title.setTag("activity_group_title");
-            title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
-            title.setTextSize(15);
-            title.setTypeface(AndroidUtilities.bold());
-            title.setSingleLine(true);
-            textColumn.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-
-            TextView count = new TextView(context);
-            count.setTag("activity_group_count");
-            count.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-            count.setTextSize(12);
-            textColumn.addView(count, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-            header.addView(textColumn, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
-
-            View divider = new View(context);
-            divider.setTag("activity_group_divider");
-            divider.setBackgroundColor(Theme.getColor(Theme.key_divider));
-            header.addView(divider, LayoutHelper.createLinear(AndroidUtilities.dp(1), AndroidUtilities.dp(32)));
-        }
-
-        TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-row.dialogId);
-        BackupImageView avatar = (BackupImageView) header.findViewWithTag("activity_group_avatar");
-        AvatarDrawable drawable = new AvatarDrawable();
-        if (chat != null) drawable.setInfo(chat);
-        avatar.setImageDrawable(drawable);
+        BackupImageView groupAvatar = new BackupImageView(context);
+        groupAvatar.setRoundRadius(AndroidUtilities.dp(24));
+        AvatarDrawable groupDrawable = new AvatarDrawable();
+        TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-group.dialogId);
+        if (chat != null) groupDrawable.setInfo(chat);
+        groupAvatar.setImageDrawable(groupDrawable);
         if (chat != null && chat.photo != null) {
             ImageLocation location = ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL);
-            if (location == null) location = ImageLocation.getForChat(chat, ImageLocation.TYPE_BIG);
-            if (location == null) location = ImageLocation.getForChat(chat, ImageLocation.TYPE_STRIPPED);
-            if (location != null) {
-                avatar.setImage(location, "50_50", drawable, chat);
+            if (location != null) groupAvatar.setImage(location, "50_50", groupDrawable, chat);
+        }
+        header.addView(groupAvatar, LayoutHelper.createLinear(48, 48));
+
+        LinearLayout titleColumn = new LinearLayout(context);
+        titleColumn.setOrientation(LinearLayout.VERTICAL);
+        titleColumn.setGravity(Gravity.CENTER_VERTICAL);
+        titleColumn.setPadding(AndroidUtilities.dp(10), 0, 0, 0);
+
+        TextView title = new TextView(context);
+        title.setText(chat != null && chat.title != null ? chat.title : "未知群组");
+        title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        title.setTextSize(15);
+        title.setTypeface(AndroidUtilities.bold());
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        titleColumn.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        TextView count = new TextView(context);
+        count.setText("最近发言 · " + group.messages.size() + " 条消息");
+        count.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        count.setTextSize(12);
+        titleColumn.addView(count, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        header.addView(titleColumn, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+
+        TextView arrow = new TextView(context);
+        arrow.setText(collapsedGroups.contains(group.dialogId) ? "⌄" : "⌃");
+        arrow.setTextSize(22);
+        arrow.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        arrow.setGravity(Gravity.CENTER);
+        header.addView(arrow, LayoutHelper.createLinear(28, 42));
+        header.setOnClickListener(v -> {
+            if (collapsedGroups.contains(group.dialogId)) {
+                collapsedGroups.remove(group.dialogId);
+            } else {
+                collapsedGroups.add(group.dialogId);
+            }
+            notifyDataSetChanged();
+        });
+        card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        if (!collapsedGroups.contains(group.dialogId)) {
+            View divider = new View(context);
+            divider.setBackgroundColor(Theme.getColor(Theme.key_divider));
+            card.addView(divider, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 1, 0, 0, 0, 3));
+
+            for (TLRPC.Message message : group.messages) {
+                card.addView(createMessageRow(context, message),
+                        LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(48)));
             }
         }
 
-        TextView title = (TextView) header.findViewWithTag("activity_group_title");
-        title.setText(chat != null && chat.title != null ? chat.title : "未知群组");
-        TextView count = (TextView) header.findViewWithTag("activity_group_count");
-        count.setText(row.messageCount + " 条活动消息");
-        header.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-        return header;
+        FrameLayout outer = new FrameLayout(context);
+        outer.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(5),
+                AndroidUtilities.dp(10), AndroidUtilities.dp(5));
+        outer.addView(card, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return outer;
     }
 
-    private View getMessageView(TLRPC.Message msg, View convertView, ViewGroup parent) {
-        android.content.Context context = parent.getContext();
-        FrameLayout wrapper;
-        if (convertView instanceof FrameLayout) {
-            wrapper = (FrameLayout) convertView;
-        } else {
-            wrapper = new FrameLayout(context);
+    private View createMessageRow(android.content.Context context, TLRPC.Message message) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, AndroidUtilities.dp(3), 0, AndroidUtilities.dp(3));
+
+        BackupImageView senderAvatar = new BackupImageView(context);
+        senderAvatar.setRoundRadius(AndroidUtilities.dp(16));
+        TLRPC.User sender = null;
+        if (message.from_id instanceof TLRPC.TL_peerUser) {
+            sender = MessagesController.getInstance(currentAccount).getUser(message.from_id.user_id);
         }
-        wrapper.removeAllViews();
-
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setGravity(Gravity.CENTER_VERTICAL);
-        // Indent message content beneath the group title; the group avatar/name is shown once.
-        layout.setPadding(AndroidUtilities.dp(68), AndroidUtilities.dp(7), AndroidUtilities.dp(12), AndroidUtilities.dp(9));
-        layout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-
-        MessageObject messageObject = new MessageObject(currentAccount, msg, false, false);
-        LinearLayout contentLayout = new LinearLayout(context);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-
-        LinearLayout topRow = new LinearLayout(context);
-        topRow.setOrientation(LinearLayout.HORIZONTAL);
-        topRow.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView timeView = new TextView(context);
-        long messageTime = (long) msg.date * 1000;
-        java.text.DateFormat dateFormat = android.text.format.DateFormat.getDateFormat(context);
-        java.text.DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
-        java.util.Calendar messageCalendar = java.util.Calendar.getInstance();
-        messageCalendar.setTimeInMillis(messageTime);
-        java.util.Calendar today = java.util.Calendar.getInstance();
-        if (messageCalendar.get(java.util.Calendar.YEAR) == today.get(java.util.Calendar.YEAR)
-                && messageCalendar.get(java.util.Calendar.DAY_OF_YEAR) == today.get(java.util.Calendar.DAY_OF_YEAR)) {
-            timeView.setText(timeFormat.format(messageTime));
-        } else {
-            timeView.setText(dateFormat.format(messageTime));
+        AvatarDrawable senderDrawable = new AvatarDrawable();
+        if (sender != null) senderDrawable.setInfo(sender);
+        senderAvatar.setImageDrawable(senderDrawable);
+        if (sender != null && sender.photo != null) {
+            ImageLocation location = ImageLocation.getForUser(sender, ImageLocation.TYPE_SMALL);
+            if (location != null) senderAvatar.setImage(location, "32_32", senderDrawable, sender);
         }
-        timeView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        timeView.setTextSize(12);
-        topRow.addView(timeView);
-        contentLayout.addView(topRow);
+        row.addView(senderAvatar, LayoutHelper.createLinear(32, 32));
 
+        MessageObject messageObject = new MessageObject(currentAccount, message, false, false);
+        CharSequence preview = messageObject.messageText;
+        String text = preview != null && preview.length() > 0
+                ? preview.toString() : getActivityMediaText(message);
         TextView messageView = new TextView(context);
-        String text = (messageObject.messageText != null && messageObject.messageText.length() > 0)
-                ? messageObject.messageText.toString() : getActivityMediaText(msg);
         messageView.setText(text);
         messageView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         messageView.setTextSize(14);
-        messageView.setMaxLines(3);
-        messageView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        messageView.setPadding(0, AndroidUtilities.dp(3), 0, 0);
-        contentLayout.addView(messageView);
-        layout.addView(contentLayout, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+        messageView.setSingleLine(true);
+        messageView.setEllipsize(TextUtils.TruncateAt.END);
+        messageView.setGravity(Gravity.CENTER_VERTICAL);
+        messageView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(6), 0);
+        row.addView(messageView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f));
 
-        messageObject.generateThumbs(false);
-        if (messageObject.photoThumbs != null && !messageObject.photoThumbs.isEmpty()
-                && messageObject.photoThumbsObject != null) {
-            TLRPC.PhotoSize thumb = FileLoader.getClosestPhotoSizeWithSize(messageObject.photoThumbs, 100);
-            if (thumb != null) {
-                ImageLocation imageLocation = ImageLocation.getForObject(thumb, messageObject.photoThumbsObject);
-                if (imageLocation != null) {
-                    BackupImageView mediaThumb = new BackupImageView(context);
-                    mediaThumb.setRoundRadius(AndroidUtilities.dp(6));
-                    mediaThumb.setImage(imageLocation, "72_72", (android.graphics.drawable.Drawable) null, messageObject);
-                    LinearLayout.LayoutParams thumbParams = new LinearLayout.LayoutParams(AndroidUtilities.dp(64), AndroidUtilities.dp(64));
-                    thumbParams.leftMargin = AndroidUtilities.dp(8);
-                    layout.addView(mediaThumb, thumbParams);
-                }
-            }
-        }
+        TextView timeView = new TextView(context);
+        timeView.setText(formatMessageTime(context, message.date));
+        timeView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        timeView.setTextSize(12);
+        timeView.setSingleLine(true);
+        timeView.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        row.addView(timeView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
 
-        wrapper.addView(layout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-        View divider = new View(context);
-        divider.setBackgroundColor(Theme.getColor(Theme.key_divider));
-        wrapper.addView(divider, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 1, Gravity.BOTTOM, 68, 0, 0, 0));
-
-        wrapper.setOnClickListener(v -> {
-            if (fragment == null) return;
-            long dialogId = msg.dialog_id;
-            int messageId = msg.id;
-            if (dialogId == 0 || messageId == 0) return;
-            fragment.presentFragment(ChatActivity.of(dialogId, messageId));
+        row.setOnClickListener(v -> {
+            if (fragment == null || message.dialog_id == 0 || message.id == 0) return;
+            fragment.presentFragment(ChatActivity.of(message.dialog_id, message.id));
         });
-        return wrapper;
+        return row;
     }
 
-    private String getActivityMediaType(TLRPC.Message message) {
-        if (message == null || message.media == null) return "TEXT";
-        if (message.media instanceof TLRPC.TL_messageMediaPhoto) return "PHOTO";
-        if (message.media instanceof TLRPC.TL_messageMediaDocument) {
-            TLRPC.Document document = message.media.document;
-            if (document == null) return "FILE";
-            for (TLRPC.DocumentAttribute attribute : document.attributes) {
-                if (attribute instanceof TLRPC.TL_documentAttributeVideo) return "VIDEO";
-                if (attribute instanceof TLRPC.TL_documentAttributeAudio) return "AUDIO";
-                if (attribute instanceof TLRPC.TL_documentAttributeAnimated) return "GIF";
-            }
-            return "FILE";
-        }
-        if (message.media instanceof TLRPC.TL_messageMediaWebPage) return "LINK";
-        return "OTHER";
+    private String formatMessageTime(android.content.Context context, int date) {
+        long time = (long) date * 1000L;
+        Calendar messageCalendar = Calendar.getInstance();
+        messageCalendar.setTimeInMillis(time);
+        Calendar today = Calendar.getInstance();
+        boolean sameDay = messageCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+                && messageCalendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR);
+        DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
+        if (sameDay) return timeFormat.format(time);
+
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("M月d日", Locale.getDefault());
+        return dateFormat.format(time) + "  " + timeFormat.format(time);
     }
 
     private String getActivityMediaText(TLRPC.Message message) {
-        String type = getActivityMediaType(message);
-        switch (type) {
-            case "PHOTO": return "📷 图片消息";
-            case "VIDEO": return "🎬 视频消息";
-            case "AUDIO": return "🎵 音频消息";
-            case "GIF": return "🎞 动图消息";
-            case "FILE": return "📎 文件消息";
-            case "LINK": return "🔗 网页链接";
-            default: return "[媒体消息]";
+        if (message == null || message.media == null) return "";
+        if (message.media instanceof TLRPC.TL_messageMediaPhoto) return "📷 图片消息";
+        if (message.media instanceof TLRPC.TL_messageMediaDocument) {
+            TLRPC.Document document = message.media.document;
+            if (document == null) return "📎 文件消息";
+            for (TLRPC.DocumentAttribute attribute : document.attributes) {
+                if (attribute instanceof TLRPC.TL_documentAttributeVideo) return "🎬 视频消息";
+                if (attribute instanceof TLRPC.TL_documentAttributeAudio) return "🎵 音频消息";
+                if (attribute instanceof TLRPC.TL_documentAttributeAnimated) return "🎞 动图消息";
+            }
+            return "📎 文件消息";
         }
+        if (message.media instanceof TLRPC.TL_messageMediaWebPage) return "🔗 网页链接";
+        return "[媒体消息]";
     }
 }
