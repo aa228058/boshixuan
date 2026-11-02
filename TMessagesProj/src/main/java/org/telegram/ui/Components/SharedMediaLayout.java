@@ -4884,7 +4884,7 @@ if (id == TAB_MANGO_ACTIVITY) {
     int id = scrollSlidingTextTabStrip.getCurrentTabId();
     if (!scrollSlidingTextTabStrip.hasTab(id)) {
         id = -1;
-        int[] tabIds = scrollSlidingTextTabStrip.getTabIds();
+        ArrayList<Integer> tabIds = scrollSlidingTextTabStrip.getTabIds();
         for (int tabId : tabIds) {
             // 关键：回退时自动跳过“活动”标签，寻找第一个正常的媒体标签
             if (tabId != TAB_MANGO_ACTIVITY) { 
@@ -11922,7 +11922,7 @@ if (!isStoriesView()) {
     private android.widget.FrameLayout mActivityOverlay;
 
 private void showRealActivityPage() {
-    if (getContext() == null) return;
+    if (getContext() == null || profileActivity == null) return;
 
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
@@ -11935,13 +11935,14 @@ private void showRealActivityPage() {
     android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
     mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
-    FriendActivityPage.fetch(org.telegram.messenger.UserConfig.selectedAccount, dialog_id, new FriendActivityPage.Callback() {
+    final int currentAccount = profileActivity.getCurrentAccount();
+    FriendActivityPage activityPage = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
         @Override
-        public void onResult(ArrayList<TLRPC.Message> messages) {
-            if (mActivityOverlay == null) return;
+        public void onResult(ArrayList<TLRPC.Message> messages, boolean hasMore) {
+            if (mActivityOverlay == null || getContext() == null) return;
             mActivityOverlay.removeAllViews();
 
-            if (messages.isEmpty()) {
+            if (messages == null || messages.isEmpty()) {
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("近期没有发言");
                 tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
@@ -11952,22 +11953,13 @@ private void showRealActivityPage() {
             android.widget.ListView listView = new android.widget.ListView(getContext());
             listView.setDivider(null);
             listView.setDividerHeight(0);
-            listView.setAdapter(new FriendActivityAdapter(messages));
-            
-            listView.setOnItemClickListener((parent, view, position, id) -> {
-                TLRPC.Message msg = messages.get(position);
-                android.content.Intent intent = new android.content.Intent(getContext(), org.telegram.ui.LaunchActivity.class);
-                intent.putExtra("chatId", msg.dialog_id);
-                intent.putExtra("message_id", msg.id);
-                getContext().startActivity(intent);
-            });
-
+            listView.setAdapter(new FriendActivityAdapter(currentAccount, messages, profileActivity));
             mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
         }
 
         @Override
         public void onError(String error) {
-            if (mActivityOverlay != null) {
+            if (mActivityOverlay != null && getContext() != null) {
                 mActivityOverlay.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("加载失败: " + error);
@@ -11976,5 +11968,6 @@ private void showRealActivityPage() {
             }
         }
     });
+    activityPage.loadFirstPage();
 }
 }
