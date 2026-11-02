@@ -8,6 +8,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -30,7 +31,10 @@ import org.telegram.ui.Components.LayoutHelper;
 /** Explicit review, owner-bound confirmation and progress; opening the page never sends. */
 public final class MangoUserBroadcastActivity extends BaseFragment {
     private EditTextBoldCursor editor;
-    private TextView status, send, cancel;
+    private TextView status, progressStats, send, cancel, historyToggle;
+    private ProgressBar progressBar;
+    private LinearLayout historyList;
+    private boolean showHistory;
     private MangoBroadcastTargets loader;
     private long owner;
     private boolean destroyed, resumed;
@@ -83,8 +87,36 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         editor.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), getThemedColor(Theme.key_windowBackgroundWhite)));
         editor.setText(draft);
         content.addView(editor, LayoutHelper.createLinear(-1, -2));
-        status = label(context, 14, Theme.key_windowBackgroundWhiteGrayText);
-        content.addView(status, LayoutHelper.createLinear(-1, -2, 0, 16, 0, 16));
+        LinearLayout progressCard = new LinearLayout(context);
+        progressCard.setOrientation(LinearLayout.VERTICAL);
+        progressCard.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(14), AndroidUtilities.dp(16), AndroidUtilities.dp(14));
+        progressCard.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14), getThemedColor(Theme.key_windowBackgroundWhite)));
+        content.addView(progressCard, LayoutHelper.createLinear(-1, -2, 0, 18, 0, 14));
+        TextView progressTitle = label(context, 16, Theme.key_windowBackgroundWhiteBlackText);
+        progressTitle.setTypeface(AndroidUtilities.bold());
+        progressTitle.setText("当前发送任务");
+        progressCard.addView(progressTitle, LayoutHelper.createLinear(-1, -2));
+        status = label(context, 13, Theme.key_windowBackgroundWhiteGrayText);
+        status.setText("暂无进行中的任务");
+        progressCard.addView(status, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 8));
+        progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(1000);
+        progressCard.addView(progressBar, LayoutHelper.createLinear(-1, 6, 0, 0, 0, 8));
+        progressStats = label(context, 13, Theme.key_windowBackgroundWhiteGrayText);
+        progressCard.addView(progressStats, LayoutHelper.createLinear(-1, -2));
+        historyToggle = button(context, true);
+        historyToggle.setText("查看群发任务记录");
+        content.addView(historyToggle, LayoutHelper.createLinear(-1, 44, 0, 0, 0, 8));
+        historyToggle.setOnClickListener(v -> {
+            showHistory = !showHistory;
+            historyList.setVisibility(showHistory ? View.VISIBLE : View.GONE);
+            historyToggle.setText(showHistory ? "收起任务记录" : "查看群发任务记录");
+            renderHistory();
+        });
+        historyList = new LinearLayout(context);
+        historyList.setOrientation(LinearLayout.VERTICAL);
+        historyList.setVisibility(View.GONE);
+        content.addView(historyList, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 14));
         send = button(context, false);
         content.addView(send, LayoutHelper.createLinear(-1, 50));
         send.setOnClickListener(v -> review());
@@ -122,15 +154,23 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         if (status == null || !current()) return;
         MangoUserBroadcastManager manager = MangoUserBroadcastManager.getInstance(currentAccount);
         int state = manager.state();
-        String text = manager.total() == 0 ? "" : LocaleController.formatString(R.string.MangoBroadcastProgress,
-                manager.submitted(), manager.total(), manager.skipped());
-        int message = state == MangoUserBroadcastManager.PAUSED ? R.string.MangoBroadcastPaused
-                : state == MangoUserBroadcastManager.DONE ? R.string.MangoBroadcastCompleted
-                : state == MangoUserBroadcastManager.CANCELLED ? R.string.MangoBroadcastCancelled
-                : manager.isRunning() && !DailyMessageTasksManager.isConnected(currentAccount) ? R.string.MangoBroadcastWaiting : 0;
-        if (message != 0) text += "\n" + getString(message);
-        status.setText(text.trim());
-        status.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+        int total = manager.total();
+        int processed = manager.processed();
+        int skipped = manager.skipped();
+        int remaining = Math.max(0, total - processed);
+        int success = Math.max(0, processed - skipped);
+        String stateLabel = state == MangoUserBroadcastManager.RUNNING ? "发送中"
+                : state == MangoUserBroadcastManager.PAUSED ? "已暂停，可继续"
+                : state == MangoUserBroadcastManager.DONE ? "已完成"
+                : state == MangoUserBroadcastManager.CANCELLED ? "已停止" : "暂无进行中的任务";
+        if (manager.isRunning() && !DailyMessageTasksManager.isConnected(currentAccount)) stateLabel = "等待账号连接";
+        status.setText(stateLabel + (total > 0 ? " · " + processed + "/" + total + " 已处理" : ""));
+        progressBar.setProgress(total <= 0 ? 0 : (int) (processed * 1000L / total));
+        progressBar.setVisibility(total > 0 ? View.VISIBLE : View.GONE);
+        progressStats.setText(total > 0
+                ? "成功 " + success + "    跳过/失败 " + skipped + "    剩余 " + remaining
+                : "任务开始后，这里会显示实时进度和发送结果");
+        progressStats.setVisibility(View.VISIBLE);
         boolean busy = loader != null || manager.isRunning();
         send.setText(getString(loader != null ? R.string.Loading : state == MangoUserBroadcastManager.PAUSED
                 ? R.string.MangoBroadcastResume : R.string.MangoBroadcastLoad));
@@ -138,6 +178,44 @@ public final class MangoUserBroadcastActivity extends BaseFragment {
         editor.setEnabled(!manager.hasPending() && loader == null);
         if (manager.hasPending() && !manager.message().contentEquals(editor.getText())) editor.setText(manager.message());
         cancel.setVisibility(manager.hasPending() ? View.VISIBLE : View.GONE);
+        historyToggle.setVisibility(manager.history().isEmpty() ? View.GONE : View.VISIBLE);
+        if (showHistory) renderHistory();
+    }
+    private void renderHistory() {
+        if (historyList == null) return;
+        historyList.removeAllViews();
+        java.util.ArrayList<MangoUserBroadcastManager.TaskRecord> records =
+                MangoUserBroadcastManager.getInstance(currentAccount).history();
+        if (records.isEmpty()) {
+            TextView empty = label(getParentActivity(), 13, Theme.key_windowBackgroundWhiteGrayText);
+            empty.setText("还没有群发任务记录");
+            historyList.addView(empty, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 8));
+            return;
+        }
+        for (MangoUserBroadcastManager.TaskRecord record : records) {
+            LinearLayout card = new LinearLayout(getParentActivity());
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
+            card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), getThemedColor(Theme.key_windowBackgroundWhite)));
+            TextView title = label(getParentActivity(), 14, Theme.key_windowBackgroundWhiteBlackText);
+            title.setTypeface(AndroidUtilities.bold());
+            String stateText = record.state == MangoUserBroadcastManager.RUNNING ? "发送中"
+                    : record.state == MangoUserBroadcastManager.PAUSED ? "已暂停"
+                    : record.state == MangoUserBroadcastManager.DONE ? "已完成"
+                    : record.state == MangoUserBroadcastManager.CANCELLED ? "已停止" : "未开始";
+            title.setText(stateText + " · " + LocaleController.formatDateChat((int) (record.createdAt / 1000)));
+            card.addView(title, LayoutHelper.createLinear(-1, -2));
+            TextView stats = label(getParentActivity(), 13, Theme.key_windowBackgroundWhiteGrayText);
+            int done = Math.min(record.total, record.processed);
+            stats.setText("成功 " + Math.max(0, done - record.skipped) + " · 跳过/失败 " + record.skipped
+                    + " · 剩余 " + Math.max(0, record.total - done) + " · 总计 " + record.total);
+            card.addView(stats, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 0));
+            TextView preview = label(getParentActivity(), 13, Theme.key_windowBackgroundWhiteGrayText);
+            preview.setMaxLines(2);
+            preview.setText(record.message == null ? "" : record.message);
+            card.addView(preview, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 0));
+            historyList.addView(card, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 8));
+        }
     }
     private void review() {
         if (!current() || loader != null || getParentActivity() == null) return;
