@@ -36,15 +36,15 @@ jobs:
 
       - name: Configure fixed release signing
         env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 || secrets.KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           for name in RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::Missing required GitHub Actions secret: $name"
+              echo "::error::Missing required signing secret (RELEASE_* or legacy KEYSTORE_* / KEY_* name)"
               exit 1
             fi
           done
@@ -52,14 +52,16 @@ jobs:
           mkdir -p TMessagesProj/config
           printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > TMessagesProj/config/release.keystore
           test -s TMessagesProj/config/release.keystore
+          keytool -list -keystore TMessagesProj/config/release.keystore \
+            -storepass "$RELEASE_STORE_PASSWORD" -alias "$RELEASE_KEY_ALIAS" >/dev/null
 
           sed -i '/^RELEASE_STORE_PASSWORD=/d' gradle.properties
           sed -i '/^RELEASE_KEY_ALIAS=/d' gradle.properties
           sed -i '/^RELEASE_KEY_PASSWORD=/d' gradle.properties
           {
-            printf '%s\n' "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
-            printf '%s\n' "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
-            printf '%s\n' "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+            printf '%s\\n' "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+            printf '%s\\n' "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            printf '%s\\n' "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
           } >> gradle.properties
 
       - name: Build single universal Release APK
@@ -88,3 +90,4 @@ jobs:
           name: Boshixuan-Universal-Release-APK
           path: dist/Boshixuan-universal-release.apk
           if-no-files-found: error
+          retention-days: 7
