@@ -33,6 +33,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     private final int currentAccount;
     private final ArrayList<TLRPC.Message> messages = new ArrayList<>();
     private final ArrayList<GroupItem> groups = new ArrayList<>();
+    private final ArrayList<RowItem> rows = new ArrayList<>();
     private final HashSet<Long> collapsedGroups = new HashSet<>();
     private final BaseFragment fragment;
     private final java.text.SimpleDateFormat activityTimeFormat =
@@ -41,6 +42,9 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             new java.text.SimpleDateFormat("M月d日", Locale.getDefault());
     private long activityDayStartMillis;
     private long activityDayEndMillis;
+
+    private static final int VIEW_TYPE_GROUP = 0;
+    private static final int VIEW_TYPE_MESSAGE = 1;
 
     private static class GroupItem {
         final long dialogId;
@@ -51,6 +55,20 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         }
     }
 
+    private static class RowItem {
+        final GroupItem group;
+        final TLRPC.Message message;
+
+        RowItem(GroupItem group, TLRPC.Message message) {
+            this.group = group;
+            this.message = message;
+        }
+
+        boolean isGroupHeader() {
+            return message == null;
+        }
+    }
+
     public FriendActivityAdapter(int currentAccount, ArrayList<TLRPC.Message> messages, BaseFragment fragment) {
         this.currentAccount = currentAccount;
         this.fragment = fragment;
@@ -58,66 +76,14 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     }
 
     public void setMessages(ArrayList<TLRPC.Message> newMessages) {
-        ArrayList<Long> previousGroupIds = new ArrayList<>();
-        LinkedHashMap<Long, ArrayList<String>> previousMessageKeys = new LinkedHashMap<>();
-        for (GroupItem group : groups) {
-            previousGroupIds.add(group.dialogId);
-            ArrayList<String> keys = new ArrayList<>(group.messages.size());
-            for (TLRPC.Message message : group.messages) {
-                keys.add(getMessageSignature(message));
-            }
-            previousMessageKeys.put(group.dialogId, keys);
-        }
-
         messages.clear();
         if (newMessages != null) {
             messages.addAll(newMessages);
         }
         rebuildGroups();
-
-        boolean sameGroups = previousGroupIds.size() == groups.size();
-        if (sameGroups) {
-            for (int i = 0; i < groups.size(); i++) {
-                if (previousGroupIds.get(i) != groups.get(i).dialogId) {
-                    sameGroups = false;
-                    break;
-                }
-            }
-        }
-
-        if (!sameGroups) {
-            notifyDataSetChanged();
-            return;
-        }
-
-        // Pagination usually adds messages to only a few groups. Keep the
-        // already-bound cards for every unchanged group instead of rebuilding
-        // all of their avatar, text and message-row views.
-        for (int i = 0; i < groups.size(); i++) {
-            GroupItem group = groups.get(i);
-            ArrayList<String> oldKeys = previousMessageKeys.get(group.dialogId);
-            boolean changed = oldKeys == null || oldKeys.size() != group.messages.size();
-            if (!changed) {
-                for (int j = 0; j < group.messages.size(); j++) {
-                    TLRPC.Message message = group.messages.get(j);
-                    String key = getMessageSignature(message);
-                    if (!oldKeys.get(j).equals(key)) {
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-            if (changed) {
-                notifyItemChanged(i);
-            }
-        }
-    }
-
-    private String getMessageSignature(TLRPC.Message message) {
-        if (message == null) return "";
-        String mediaType = message.media == null ? "" : message.media.getClass().getName();
-        return message.id + ":" + message.date + ":" + message.edit_date + ":"
-                + (message.message == null ? "" : message.message) + ":" + mediaType;
+        // RecyclerView now owns individual message rows, so a data refresh
+        // only rebinds the visible window instead of constructing every row.
+        notifyDataSetChanged();
     }
 
     private void rebuildGroups() {
@@ -153,23 +119,31 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         HashSet<Long> existing = new HashSet<>();
         for (GroupItem group : groups) existing.add(group.dialogId);
         collapsedGroups.retainAll(existing);
+
+        rebuildRows();
     }
 
     public long getGroupDialogIdAtPosition(int position) {
-        return position >= 0 && position < groups.size() ? groups.get(position).dialogId : 0;
+        return position >= 0 && position < rows.size() ? rows.get(position).group.dialogId : 0;
     }
 
     public int findGroupPosition(long dialogId) {
         if (dialogId == 0) return RecyclerView.NO_POSITION;
-        for (int i = 0; i < groups.size(); i++) {
-            if (groups.get(i).dialogId == dialogId) return i;
+        for (int i = 0; i < rows.size(); i++) {
+            RowItem row = rows.get(i);
+            if (row.group.dialogId == dialogId && row.isGroupHeader()) return i;
         }
         return RecyclerView.NO_POSITION;
     }
 
     @Override
     public int getItemCount() {
-        return groups.size();
+        return rows.size();
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        return rows.get(position).isGroupHeader() ? VIEW_TYPE_GROUP : VIEW_TYPE_MESSAGE;
     }
 
     @Override
@@ -184,26 +158,27 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-        GroupItem group = groups.get(position);
+        RowItem item = rows.get(position);
         FrameLayout container = (FrameLayout) holder.itemView;
         container.removeAllViews();
-        container.addView(createGroupView(group, container.getContext()),
-                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        View rowView = item.isGroupHeader()
+                ? createGroupHeader(item.group, container.getContext())
+                : createMessageRow(container.getContext(), item.message);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        container.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(item.isGroupHeader() ? 4 : 0),
+                AndroidUtilities.dp(8), AndroidUtilities.dp(0));
+        container.addView(rowView, params);
     }
 
-    private View createGroupView(GroupItem group, android.content.Context context) {
-        LinearLayout card = new LinearLayout(context);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8),
-                AndroidUtilities.dp(10), AndroidUtilities.dp(6));
-        card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14),
-                Theme.getColor(Theme.key_windowBackgroundWhite)));
-        card.setClipToOutline(true);
-
+    private View createGroupHeader(GroupItem group, android.content.Context context) {
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(0, 0, 0, AndroidUtilities.dp(6));
+        header.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8),
+                AndroidUtilities.dp(10), AndroidUtilities.dp(8));
+        header.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14),
+                Theme.getColor(Theme.key_windowBackgroundWhite)));
 
         BackupImageView groupAvatar = new BackupImageView(context);
         groupAvatar.setRoundRadius(AndroidUtilities.dp(21));
@@ -217,11 +192,6 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         }
         header.addView(groupAvatar, LayoutHelper.createLinear(42, 42));
 
-        LinearLayout titleColumn = new LinearLayout(context);
-        titleColumn.setOrientation(LinearLayout.VERTICAL);
-        titleColumn.setGravity(Gravity.CENTER_VERTICAL);
-        titleColumn.setPadding(AndroidUtilities.dp(10), 0, 0, 0);
-
         TextView title = new TextView(context);
         title.setText(chat != null && chat.title != null ? chat.title : "未知群组");
         title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
@@ -229,9 +199,8 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         title.setTypeface(AndroidUtilities.bold());
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
-        titleColumn.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-
-         header.addView(titleColumn, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+        title.setPadding(AndroidUtilities.dp(10), 0, 0, 0);
+        header.addView(title, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
         TextView arrow = new TextView(context);
         arrow.setText(collapsedGroups.contains(group.dialogId) ? "⌄" : "⌃");
@@ -239,43 +208,38 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         arrow.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
         arrow.setGravity(Gravity.CENTER);
         header.addView(arrow, LayoutHelper.createLinear(28, 38));
-        header.setOnClickListener(v -> {
-            if (collapsedGroups.contains(group.dialogId)) {
-                collapsedGroups.remove(group.dialogId);
-            } else {
-                collapsedGroups.add(group.dialogId);
-            }
-            int groupPosition = groups.indexOf(group);
-            if (groupPosition >= 0) {
-                notifyItemChanged(groupPosition);
-            }
-        });
-        card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        header.setOnClickListener(v -> toggleGroup(group));
+        return header;
+    }
 
-        if (!collapsedGroups.contains(group.dialogId)) {
-            View divider = new View(context);
-            divider.setBackgroundColor(Theme.getColor(Theme.key_divider));
-            card.addView(divider, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 1, 0, 0, 0, 3));
+    private void toggleGroup(GroupItem group) {
+        if (collapsedGroups.contains(group.dialogId)) {
+            collapsedGroups.remove(group.dialogId);
+        } else {
+            collapsedGroups.add(group.dialogId);
+        }
+        rebuildRows();
+        notifyDataSetChanged();
+    }
 
-            for (TLRPC.Message message : group.messages) {
-                card.addView(createMessageRow(context, message),
-                        LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(46)));
+    private void rebuildRows() {
+        rows.clear();
+        for (GroupItem group : groups) {
+            rows.add(new RowItem(group, null));
+            if (!collapsedGroups.contains(group.dialogId)) {
+                for (TLRPC.Message message : group.messages) {
+                    rows.add(new RowItem(group, message));
+                }
             }
         }
-
-        FrameLayout outer = new FrameLayout(context);
-        outer.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(4),
-                AndroidUtilities.dp(8), AndroidUtilities.dp(4));
-        outer.addView(card, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        return outer;
     }
 
     private View createMessageRow(android.content.Context context, TLRPC.Message message) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, AndroidUtilities.dp(3), 0, AndroidUtilities.dp(3));
+        row.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(3), AndroidUtilities.dp(10), AndroidUtilities.dp(3));
+        row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_windowBackgroundWhite)));
 
         BackupImageView senderAvatar = new BackupImageView(context);
         senderAvatar.setRoundRadius(AndroidUtilities.dp(16));
