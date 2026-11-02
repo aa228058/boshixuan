@@ -86,7 +86,8 @@ public final class MangoGroupBroadcastManager {
                 RUNNERS.remove(key(account, taskId));
                 return;
             }
-            int range = Math.max(1, maxSeconds - minSeconds);
+            // The configured maximum is inclusive (for example, 5–15 means 5 through 15).
+            int range = Math.max(1, maxSeconds - minSeconds + 1);
             long delay = (minSeconds + Utilities.random.nextInt(range)) * 1000L;
             pending = () -> {
                 pending = null;
