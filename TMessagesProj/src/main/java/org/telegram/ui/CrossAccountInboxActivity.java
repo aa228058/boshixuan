@@ -379,31 +379,42 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             return;
         }
 
-        // Keep the adapter's existing array and replace/move only this one row.
-        // This avoids both DiffUtil and rebuilding/formating UItems for every chat.
+        // Reply controls are rendered before dialog rows, so their count is dynamic.
+        // Resolve the actual first dialog-row position instead of assuming a fixed offset.
+        int dialogStart = findDialogRowsStartPosition();
+        if (dialogStart < 0) {
+            listView.adapter.update(true);
+            return;
+        }
+
+        // Keep the adapter's existing array and replace/move only this one dialog row.
         boolean updated;
         if (oldRowIndex >= 0 && newRowIndex >= 0) {
-            updated = listView.adapter.replaceAndMoveItem(oldRowIndex + 1, newRowIndex + 1, createRowItem(cachedRows.get(newRowIndex)));
+            updated = listView.adapter.replaceAndMoveItem(dialogStart + oldRowIndex,
+                    dialogStart + newRowIndex, createRowItem(cachedRows.get(newRowIndex)));
         } else if (oldRowIndex >= 0) {
-            updated = listView.adapter.removeItemAt(oldRowIndex + 1);
+            updated = listView.adapter.removeItemAt(dialogStart + oldRowIndex);
         } else if (newRowIndex >= 0) {
-            updated = listView.adapter.insertItemAt(newRowIndex + 1, createRowItem(cachedRows.get(newRowIndex)));
+            updated = listView.adapter.insertItemAt(dialogStart + newRowIndex, createRowItem(cachedRows.get(newRowIndex)));
         } else {
             updated = true;
         }
         if (!updated) listView.adapter.update(true);
     }
 
-    private int findDialogRowIndexInAdapter(int account, long dialogId) {
-        if (listView == null || listView.adapter == null) return findDialogRowIndex(account, dialogId);
+    private int findDialogRowsStartPosition() {
+        if (listView == null || listView.adapter == null) return -1;
         for (int i = 0; i < listView.adapter.getItemCount(); i++) {
             UItem item = listView.adapter.getItem(i);
-            if (item != null && item.object instanceof Entry) {
-                Entry entry = (Entry) item.object;
-                if (entry.account == account && entry.dialogId == dialogId) return i - 1;
-            }
+            if (item != null && item.id == ITEM_MESSAGE) return i;
         }
         return -1;
+    }
+
+    private int findDialogRowIndexInAdapter(int account, long dialogId) {
+        // Adapter positions include filter controls and a variable number of reply rows.
+        // The cached row index is the stable index used by the targeted diff path.
+        return findDialogRowIndex(account, dialogId);
     }
 
     private int findDialogRowIndex(int account, long dialogId) {
