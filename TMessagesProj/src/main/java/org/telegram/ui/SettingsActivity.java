@@ -821,7 +821,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 Browser.openUrl(getParentActivity(), LocaleController.getString(R.string.TelegramFaqUrl));
                 break;
             case 24:
-                Browser.openUrl(getParentActivity(), "https://t.me/ZSQ888");
+                MessagesController.getInstance(currentAccount).openByUserName("boshixuan", SettingsActivity.this, 1);
                 break;
             case ITEM_ID_DEVICE_INFO:
                 presentFragment(new DeviceInfoActivity());
