@@ -53,8 +53,14 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     public void setMessages(ArrayList<TLRPC.Message> newMessages) {
         ArrayList<Long> previousGroupIds = new ArrayList<>();
+        LinkedHashMap<Long, ArrayList<Long>> previousMessageKeys = new LinkedHashMap<>();
         for (GroupItem group : groups) {
             previousGroupIds.add(group.dialogId);
+            ArrayList<Long> keys = new ArrayList<>(group.messages.size());
+            for (TLRPC.Message message : group.messages) {
+                keys.add((((long) message.date) << 32) ^ (message.id & 0xffffffffL));
+            }
+            previousMessageKeys.put(group.dialogId, keys);
         }
 
         messages.clear();
@@ -73,12 +79,31 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             }
         }
 
-        if (sameGroups) {
-            if (!groups.isEmpty()) {
-                notifyItemRangeChanged(0, groups.size());
-            }
-        } else {
+        if (!sameGroups) {
             notifyDataSetChanged();
+            return;
+        }
+
+        // Pagination usually adds messages to only a few groups. Keep the
+        // already-bound cards for every unchanged group instead of rebuilding
+        // all of their avatar, text and message-row views.
+        for (int i = 0; i < groups.size(); i++) {
+            GroupItem group = groups.get(i);
+            ArrayList<Long> oldKeys = previousMessageKeys.get(group.dialogId);
+            boolean changed = oldKeys == null || oldKeys.size() != group.messages.size();
+            if (!changed) {
+                for (int j = 0; j < group.messages.size(); j++) {
+                    TLRPC.Message message = group.messages.get(j);
+                    long key = (((long) message.date) << 32) ^ (message.id & 0xffffffffL);
+                    if (oldKeys.get(j) != key) {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            if (changed) {
+                notifyItemChanged(i);
+            }
         }
     }
 
