@@ -10,6 +10,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.SystemClock;
 
 import androidx.core.app.NotificationChannelCompat;
 import androidx.core.app.NotificationCompat;
@@ -84,8 +85,8 @@ public class NotificationsService extends Service {
     }
 
     private void checkConnectionAndWakeup() {
-        long now = System.currentTimeMillis();
-        if (now - lastConnectionCheckTime < CONNECTION_CHECK_COOLDOWN_MS) {
+        long now = SystemClock.elapsedRealtime();
+        if (lastConnectionCheckTime > 0 && now - lastConnectionCheckTime < CONNECTION_CHECK_COOLDOWN_MS) {
             return;
         }
         lastConnectionCheckTime = now;
@@ -150,8 +151,8 @@ public class NotificationsService extends Service {
         
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         if (preferences.getBoolean("pushService", true)) {
-            long now = System.currentTimeMillis();
-            if (now - lastRestartTime > RESTART_COOLDOWN_MS) {
+            long now = SystemClock.elapsedRealtime();
+            if (lastRestartTime == 0 || now - lastRestartTime > RESTART_COOLDOWN_MS) {
                 lastRestartTime = now;
                 // 发送广播拉起自身
                 Intent intent = new Intent("org.telegram.start");
