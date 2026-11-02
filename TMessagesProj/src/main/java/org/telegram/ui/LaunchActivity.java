@@ -9038,8 +9038,6 @@ public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<Messa
 
     for (int i = 0; i < targetGroups.size(); i++) {
         final long dialogId = targetGroups.get(i);
-        // 核心：生成随机 ID，底层必须用这个防重发
-        final long randomId = org.telegram.messenger.Utilities.random.nextLong();
         
         // 延迟计算（加一点随机波动防封）
         int randomOffset = org.telegram.messenger.Utilities.random.nextInt(5) - 2; 
