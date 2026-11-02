@@ -129,7 +129,7 @@ public class FriendActivityAdapter extends BaseAdapter {
                 if (imageLocation != null) {
                     BackupImageView mediaThumb = new BackupImageView(context);
                     mediaThumb.setRoundRadius(AndroidUtilities.dp(6));
-                    mediaThumb.setImage(imageLocation, "72_72", null, mo);
+                    mediaThumb.setImage(imageLocation, "72_72", (android.graphics.drawable.Drawable) null, mo);
                     LinearLayout.LayoutParams thumbParams = new LinearLayout.LayoutParams(AndroidUtilities.dp(72), AndroidUtilities.dp(72));
                     thumbParams.leftMargin = AndroidUtilities.dp(8);
                     layout.addView(mediaThumb, thumbParams);
