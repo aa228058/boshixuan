@@ -212,6 +212,44 @@ public final class CrossAccountInboxStore {
         return result;
     }
 
+    /**
+     * Remove collected replies when Telegram reports deletion for a known dialog.
+     * Message ids are only unique within a dialog, so never purge by id alone.
+     */
+    public static void removeDeletedMessages(int account, long dialogId, ArrayList<Integer> messageIds) {
+        if (dialogId == 0 || messageIds == null || messageIds.isEmpty()) {
+            return;
+        }
+        UserConfig config = UserConfig.getInstance(account);
+        if (!config.isClientActivated()) {
+            return;
+        }
+        final long ownerId = config.getClientUserId();
+        storageQueue.postRunnable(() -> {
+            JSONArray old = readArray(preferences(account, ownerId));
+            JSONArray updated = new JSONArray();
+            boolean changed = false;
+            for (int i = 0; i < old.length(); i++) {
+                JSONObject item = old.optJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                boolean deleted = item.optLong("dialog_id") == dialogId
+                        && messageIds.contains(item.optInt("message_id"));
+                if (deleted) {
+                    changed = true;
+                } else {
+                    updated.put(item);
+                }
+            }
+            if (changed) {
+                preferences(account, ownerId).edit().putString(KEY_MESSAGES, updated.toString()).apply();
+                NotificationCenter.getInstance(account).postNotificationNameOnUIThread(
+                        NotificationCenter.crossAccountInboxUpdated);
+            }
+        });
+    }
+
     public static void setHandled(int account, long ownerId, long dialogId,
                                   int messageId, boolean handled) {
         storageQueue.postRunnable(() -> {
