@@ -3,7 +3,6 @@ package org.telegram.ui;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.app.AlertDialog;
 import android.graphics.Canvas;
 import android.os.Bundle;
@@ -903,11 +902,12 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                             text, row.dialogId, currentReply, null, null, true,
                             null, null, null, true, 0, 0, null, false);
                     AccountInstance.getInstance(row.account).getSendMessagesHelper().sendMessage(params);
-                    CrossAccountInboxStore.setHandled(row.account, row.ownerId, row.dialogId,
-                            row.messageId, true);
-                    AndroidUtilities.runOnUIThread(() -> {
-                        if (active && listView != null) listView.adapter.update(true);
-                    }, 250);
+                    // sendMessage() is asynchronous and may wait for send guards or
+                    // fail at the network layer. Do not mark the inbox entry handled
+                    // merely because the send request was submitted.
+                    new AlertDialog.Builder(getParentActivity())
+                            .setMessage("回复已提交发送。请确认群组中发送成功后，再将这条收件箱消息标记为已处理。")
+                            .setPositiveButton("知道了", null).show();
                 }).show();
     }
 
