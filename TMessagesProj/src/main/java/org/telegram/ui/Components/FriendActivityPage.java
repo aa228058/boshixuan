@@ -169,6 +169,12 @@ public class FriendActivityPage {
                 if (groupCompare != 0) {
                     return groupCompare;
                 }
+                // Titles are not unique; use the dialog id as a stable group key
+                // so messages from different groups never interleave.
+                int dialogCompare = Long.compare(m1.dialog_id, m2.dialog_id);
+                if (dialogCompare != 0) {
+                    return dialogCompare;
+                }
                 int dateCompare = Integer.compare(m2.date, m1.date);
                 return dateCompare != 0 ? dateCompare : Integer.compare(m2.id, m1.id);
             });
