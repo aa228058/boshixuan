@@ -11919,8 +11919,10 @@ if (!isStoriesView()) {
         }
     }
     private android.widget.FrameLayout mActivityOverlay;
+private int mActivityRequestGeneration;
 
 private void showRealActivityPage() {
+    final int requestGeneration = ++mActivityRequestGeneration;
     if (getContext() == null || profileActivity == null) return;
 
     if (mActivityOverlay == null) {
@@ -11931,6 +11933,10 @@ private void showRealActivityPage() {
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 android.view.Gravity.TOP, 0, 48, 0, 0));
+    }
+    // Keep the profile tab strip above the activity overlay so it remains clickable.
+    if (scrollSlidingTextTabStrip != null) {
+        bringChildToFront(scrollSlidingTextTabStrip);
     }
     mActivityOverlay.setVisibility(android.view.View.VISIBLE);
     mActivityOverlay.removeAllViews();
@@ -11948,7 +11954,7 @@ private void showRealActivityPage() {
     pageHolder[0] = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
         @Override
         public void onResult(ArrayList<TLRPC.Message> messages, boolean hasMore) {
-            if (mActivityOverlay == null || getContext() == null) return;
+            if (requestGeneration != mActivityRequestGeneration || mActivityOverlay == null || getContext() == null) return;
             hasMoreHolder[0] = hasMore;
 
             if (listHolder[0] == null) {
@@ -12026,7 +12032,7 @@ private void showRealActivityPage() {
 
         @Override
         public void onError(String error) {
-            if (mActivityOverlay != null && getContext() != null) {
+            if (requestGeneration == mActivityRequestGeneration && mActivityOverlay != null && getContext() != null) {
                 mActivityOverlay.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("加载失败: " + error);
