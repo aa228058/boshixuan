@@ -382,7 +382,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                         + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
                         + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
                         + "\\n" + reply.preview;
-                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_message, title);
+                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
                 row.subtext = detail;
                 row.object = reply;
                 items.add(row);
@@ -729,9 +729,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         else args.putLong("user_id", row.dialogId);
         MessagesController controller = MessagesController.getInstance(row.account);
         if (!controller.checkCanOpenChat(args, this)) return;
+        args.putInt("message_id", row.messageId);
         ChatActivity chat = new ChatActivity(args);
         chat.setCurrentAccount(row.account);
-        chat.setOpenAtMessageId(row.messageId);
         if (getParentActivity() instanceof LaunchActivity) {
             LaunchActivity activity = (LaunchActivity) getParentActivity();
             activity.switchToAccount(row.account, true);
