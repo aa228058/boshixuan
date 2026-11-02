@@ -92,7 +92,7 @@ public final class CrossAccountInboxStore {
         if (preview == null) {
             preview = "";
         }
-        preview = preview.replace('\\n', ' ').trim();
+        preview = preview.replace('\n', ' ').trim();
         if (preview.length() > 500) {
             preview = preview.substring(0, 500);
         }
