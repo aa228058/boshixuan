@@ -11,6 +11,7 @@ import org.telegram.tgnet.TLRPC;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 
 /**
  * Local, account-isolated persistence for messages collected by the unified inbox.
@@ -229,6 +230,10 @@ public final class CrossAccountInboxStore {
             return;
         }
         final long ownerId = config.getClientUserId();
+        // Deletion batches can contain many ids. Build one lookup set so pruning
+        // the bounded inbox history stays linear instead of scanning the list
+        // of deleted ids for every stored reply.
+        final HashSet<Integer> deletedIds = new HashSet<>(messageIds);
         storageQueue.postRunnable(() -> {
             JSONArray old = readArray(preferences(account, ownerId));
             JSONArray updated = new JSONArray();
@@ -239,7 +244,7 @@ public final class CrossAccountInboxStore {
                     continue;
                 }
                 boolean deleted = item.optLong("dialog_id") == dialogId
-                        && messageIds.contains(item.optInt("message_id"));
+                        && deletedIds.contains(item.optInt("message_id"));
                 if (deleted) {
                     changed = true;
                 } else {
