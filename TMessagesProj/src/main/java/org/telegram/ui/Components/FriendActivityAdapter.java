@@ -52,12 +52,34 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     }
 
     public void setMessages(ArrayList<TLRPC.Message> newMessages) {
+        ArrayList<Long> previousGroupIds = new ArrayList<>();
+        for (GroupItem group : groups) {
+            previousGroupIds.add(group.dialogId);
+        }
+
         messages.clear();
         if (newMessages != null) {
             messages.addAll(newMessages);
         }
         rebuildGroups();
-        notifyDataSetChanged();
+
+        boolean sameGroups = previousGroupIds.size() == groups.size();
+        if (sameGroups) {
+            for (int i = 0; i < groups.size(); i++) {
+                if (previousGroupIds.get(i) != groups.get(i).dialogId) {
+                    sameGroups = false;
+                    break;
+                }
+            }
+        }
+
+        if (sameGroups) {
+            if (!groups.isEmpty()) {
+                notifyItemRangeChanged(0, groups.size());
+            }
+        } else {
+            notifyDataSetChanged();
+        }
     }
 
     private void rebuildGroups() {
@@ -162,7 +184,10 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             } else {
                 collapsedGroups.add(group.dialogId);
             }
-            notifyDataSetChanged();
+            int groupPosition = groups.indexOf(group);
+            if (groupPosition >= 0) {
+                notifyItemChanged(groupPosition);
+            }
         });
         card.addView(header, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
