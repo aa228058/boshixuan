@@ -123,7 +123,6 @@ import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
-import org.telegram.messenger.MangoAnnouncementController;
 import org.telegram.messenger.MangoPerformanceMonitor;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.NotificationsController;
@@ -6640,7 +6639,6 @@ public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<Messa
     protected void onPause() {
         super.onPause();
         isResumed = false;
-        MangoAnnouncementController.onPause(this);
         MangoPerformanceMonitor.setForeground(false);
         MangoDownloadSpeedHud.detach();
         pipActivityHandler.onPause();
@@ -6990,7 +6988,6 @@ public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<Messa
             // Re-check if the user updated their email from another client
             MessagesController.getInstance(currentAccount).checkPromoInfo(true);
         }
-        MangoAnnouncementController.onResume(this);
         //if (refreshRateController != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         //    refreshRateController.start();
         //}
