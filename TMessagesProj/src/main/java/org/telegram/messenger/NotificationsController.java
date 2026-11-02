@@ -1107,6 +1107,7 @@ public class NotificationsController extends BaseController {
 
         ArrayList<MessageObject> popupArrayAdd = new ArrayList<>(0);
         notificationsQueue.postRunnable(() -> {
+            try {
             boolean added = false;
             boolean edited = false;
             boolean storiesUpdated = false;
@@ -1415,8 +1416,10 @@ public class NotificationsController extends BaseController {
             if (storiesUpdated) {
                 updateStoryPushesRunnable();
             }
-            if (countDownLatch != null) {
-                countDownLatch.countDown();
+            } finally {
+                if (countDownLatch != null) {
+                    countDownLatch.countDown();
+                }
             }
         });
     }
