@@ -254,6 +254,17 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             return;
         }
         if (id == NotificationCenter.messagesDeleted) {
+            if (replyInbox) {
+                // Telegram supplies the deleted message ids and, for chat dialogs,
+                // the owning chat/channel id. Message ids are scoped to a dialog;
+                // only purge persisted replies when that dialog identity is known.
+                if (args != null && args.length > 1 && args[0] instanceof ArrayList
+                        && args[1] instanceof Long && (Long) args[1] != 0) {
+                    CrossAccountInboxStore.removeDeletedMessages(account, -((Long) args[1]),
+                            (ArrayList<Integer>) args[0]);
+                }
+                return;
+            }
             // Channel deletions carry the owning channel id and can refresh one row.
             // Other deletion paths omit a dialog id, so rebuild only this account.
             if (args != null && args.length > 1 && args[1] instanceof Long && (Long) args[1] != 0
