@@ -779,19 +779,26 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private static final String INBOX_SCOPE_KEY = "cross_account_inbox_scope_accounts";
 
     private java.util.HashSet<Integer> getSelectedInboxAccounts() {
+        java.util.HashSet<Integer> active = new java.util.HashSet<>();
+        for (int account : UserConfig.getActivatedAccounts()) active.add(account);
         java.util.HashSet<Integer> selected = new java.util.HashSet<>();
-        String saved = ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE).getString(INBOX_SCOPE_KEY, "");
+        String saved = ApplicationLoader.applicationContext.getSharedPreferences(
+                "cross_account_inbox_ui", Context.MODE_PRIVATE).getString(INBOX_SCOPE_KEY, "");
         if (TextUtils.isEmpty(saved)) {
-            for (int account : UserConfig.getActivatedAccounts()) selected.add(account);
+            selected.addAll(active);
             return selected;
         }
         String[] values = saved.split(",");
         for (String value : values) {
             try {
-                selected.add(Integer.parseInt(value));
+                int account = Integer.parseInt(value);
+                if (active.contains(account)) selected.add(account);
             } catch (Exception ignore) {
             }
         }
+        // If all saved accounts were removed or logged out, recover to all
+        // currently active accounts instead of presenting an empty inbox.
+        if (selected.isEmpty()) selected.addAll(active);
         return selected;
     }
 
