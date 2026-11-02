@@ -4261,7 +4261,11 @@ if (id == TAB_MANGO_ACTIVITY) {
 
             @Override
             public void onSamePageSelected() {
-                scrollToTop();
+                if (id == TAB_MANGO_ACTIVITY && mActivityListView != null) {
+                    mActivityListView.smoothScrollToPosition(0);
+                } else {
+                    scrollToTop();
+                }
             }
 
             @Override
@@ -11924,6 +11928,7 @@ if (!isStoriesView()) {
         }
     }
     private android.widget.FrameLayout mActivityOverlay;
+    private RecyclerListView mActivityListView;
 private int mActivityRequestGeneration;
 private boolean mActivityLoadStarted;
 
@@ -12176,6 +12181,7 @@ private void showRealActivityPage(boolean display) {
                     return false;
                 });
                 listHolder[0] = listView;
+                mActivityListView = listView;
                 mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
