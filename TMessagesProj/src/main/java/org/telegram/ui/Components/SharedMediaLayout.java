@@ -4261,7 +4261,7 @@ if (id == TAB_MANGO_ACTIVITY) {
 
             @Override
             public void onSamePageSelected() {
-                if (id == TAB_MANGO_ACTIVITY && mActivityListView != null) {
+                if (mActivityOverlay != null && mActivityOverlay.getVisibility() == View.VISIBLE && mActivityListView != null) {
                     mActivityListView.smoothScrollToPosition(0);
                 } else {
                     scrollToTop();
