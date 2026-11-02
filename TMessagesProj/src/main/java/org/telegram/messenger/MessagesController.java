@@ -16066,6 +16066,12 @@ public class MessagesController extends BaseController implements NotificationCe
                 SharedConfig.pushString = regid;
                 SharedConfig.pushType = pushType;
                 getUserConfig().saveConfig(false);
+            } else if (BuildVars.LOGS_ENABLED) {
+                if (error != null) {
+                    FileLog.e("account " + currentAccount + " push registration failed, type: " + pushType + ", error: " + error.code + " " + error.text);
+                } else {
+                    FileLog.e("account " + currentAccount + " push registration returned unexpected response, type: " + pushType + ", response: " + (response == null ? "null" : response.getClass().getSimpleName()));
+                }
             }
             AndroidUtilities.runOnUIThread(() -> registeringForPush = false);
         });
