@@ -4853,6 +4853,20 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     public void onDestroy() {
+        // Invalidate outstanding activity-page callbacks before the profile view is released.
+        // FriendActivityPage may still receive network responses, but its callback must not
+        // update an overlay belonging to a destroyed or subsequently replaced profile.
+        mActivityRequestGeneration++;
+        mActivityLoadStarted = false;
+        mActivityListView = null;
+        if (mActivityOverlay != null) {
+            if (mActivityOverlay.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) mActivityOverlay.getParent()).removeView(mActivityOverlay);
+            }
+            mActivityOverlay.removeAllViews();
+            mActivityOverlay = null;
+        }
+
         profileActivity.getNotificationCenter().removeObserver(this, NotificationCenter.mediaDidLoad);
         profileActivity.getNotificationCenter().removeObserver(this, NotificationCenter.didReceiveNewMessages);
         profileActivity.getNotificationCenter().removeObserver(this, NotificationCenter.messagesDeleted);
