@@ -1526,7 +1526,8 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     TextView count = new TextView(context);
                     count.setTextSize(13);
                     count.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
-                    count.setText("已处理 " + task.processed + "/" + task.total + " · 已加入发送队列 "
+                    int progressPercent = task.total <= 0 ? 0 : Math.min(100, task.processed * 100 / task.total);
+                    count.setText("已处理 " + task.processed + "/" + task.total + " · " + progressPercent + "% · 已加入发送队列 "
                             + task.queued + " · 异常 " + task.failed);
                     card.addView(count, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 6));
 
