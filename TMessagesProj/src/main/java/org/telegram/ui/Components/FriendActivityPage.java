@@ -68,7 +68,7 @@ public class FriendActivityPage {
                 hasCommonChats = !chatIds.isEmpty();
                 if (chatIds.isEmpty()) {
                     isLoading = false;
-                    callback.onResult(allMessages, false);
+                    callback.onResult(new ArrayList<>(allMessages), false);
                 } else {
                     fetchMessages();
                 }
@@ -97,7 +97,7 @@ public class FriendActivityPage {
             hasCommonChats = !chatIds.isEmpty();
             if (!hasCommonChats) {
                 isLoading = false;
-                callback.onResult(allMessages, false);
+                callback.onResult(new ArrayList<>(allMessages), false);
             } else {
                 fetchMessages();
             }
@@ -132,7 +132,7 @@ public class FriendActivityPage {
         }
 
         isLoading = false;
-        callback.onResult(allMessages, false);
+        callback.onResult(new ArrayList<>(allMessages), false);
     }
 
     // Limit simultaneous per-chat searches to avoid flooding the connection manager.
@@ -305,7 +305,7 @@ public class FriendActivityPage {
             }
         }
         isLoading = false;
-        callback.onResult(allMessages, hasMore);
+        callback.onResult(new ArrayList<>(allMessages), hasMore);
     }
 
     private void onError(String error) {
