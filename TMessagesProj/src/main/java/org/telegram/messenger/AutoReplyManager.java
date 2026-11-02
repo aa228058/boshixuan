@@ -322,7 +322,7 @@ public class AutoReplyManager {
         if (matchedReply == null) {
             return;
         }
-        if (matchedReply.ruleId > 0 || matchedReply.ruleId == ANY_MESSAGE_RULE_ID) {
+        if (matchedReply.ruleId > 0) {
             sendLocalPresetMessages(dialogId, matchedReply.ruleId, matchedReply.legacyReplies);
             return;
         }
