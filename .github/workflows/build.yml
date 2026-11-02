@@ -57,9 +57,9 @@ jobs:
           sed -i '/^RELEASE_KEY_ALIAS=/d' gradle.properties
           sed -i '/^RELEASE_KEY_PASSWORD=/d' gradle.properties
           {
-            printf 'RELEASE_STORE_PASSWORD=%s\\n' "$RELEASE_STORE_PASSWORD"
-            printf 'RELEASE_KEY_ALIAS=%s\\n' "$RELEASE_KEY_ALIAS"
-            printf 'RELEASE_KEY_PASSWORD=%s\\n' "$RELEASE_KEY_PASSWORD"
+            printf '%s\n' "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+            printf '%s\n' "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            printf '%s\n' "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
           } >> gradle.properties
 
       - name: Build single universal Release APK
