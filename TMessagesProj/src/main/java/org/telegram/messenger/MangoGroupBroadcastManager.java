@@ -101,10 +101,11 @@ public final class MangoGroupBroadcastManager {
                 try {
                     SendMessagesHelper.getInstance(account).sendMessage(SendMessagesHelper.SendMessageParams.of(
                             current.message, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false));
-                    MangoGroupBroadcastTaskStore.markResult(account, taskId, true);
+                    MangoGroupBroadcastTaskStore.markResult(account, taskId, dialogId, true, null);
                 } catch (Throwable error) {
                     FileLog.e(error);
-                    MangoGroupBroadcastTaskStore.markResult(account, taskId, false);
+                    MangoGroupBroadcastTaskStore.markResult(account, taskId, dialogId, false,
+                            error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage());
                 }
                 index++;
                 MangoGroupBroadcastTaskStore.Task updated = MangoGroupBroadcastTaskStore.getTask(account, taskId);
