@@ -53,12 +53,12 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     public void setMessages(ArrayList<TLRPC.Message> newMessages) {
         ArrayList<Long> previousGroupIds = new ArrayList<>();
-        LinkedHashMap<Long, ArrayList<Long>> previousMessageKeys = new LinkedHashMap<>();
+        LinkedHashMap<Long, ArrayList<String>> previousMessageKeys = new LinkedHashMap<>();
         for (GroupItem group : groups) {
             previousGroupIds.add(group.dialogId);
-            ArrayList<Long> keys = new ArrayList<>(group.messages.size());
+            ArrayList<String> keys = new ArrayList<>(group.messages.size());
             for (TLRPC.Message message : group.messages) {
-                keys.add((((long) message.date) << 32) ^ (message.id & 0xffffffffL));
+                keys.add(getMessageSignature(message));
             }
             previousMessageKeys.put(group.dialogId, keys);
         }
@@ -89,13 +89,13 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         // all of their avatar, text and message-row views.
         for (int i = 0; i < groups.size(); i++) {
             GroupItem group = groups.get(i);
-            ArrayList<Long> oldKeys = previousMessageKeys.get(group.dialogId);
+            ArrayList<String> oldKeys = previousMessageKeys.get(group.dialogId);
             boolean changed = oldKeys == null || oldKeys.size() != group.messages.size();
             if (!changed) {
                 for (int j = 0; j < group.messages.size(); j++) {
                     TLRPC.Message message = group.messages.get(j);
-                    long key = (((long) message.date) << 32) ^ (message.id & 0xffffffffL);
-                    if (oldKeys.get(j) != key) {
+                    String key = getMessageSignature(message);
+                    if (!oldKeys.get(j).equals(key)) {
                         changed = true;
                         break;
                     }
@@ -105,6 +105,13 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
                 notifyItemChanged(i);
             }
         }
+    }
+
+    private String getMessageSignature(TLRPC.Message message) {
+        if (message == null) return "";
+        String mediaType = message.media == null ? "" : message.media.getClass().getName();
+        return message.id + ":" + message.date + ":" + message.edit_date + ":"
+                + (message.message == null ? "" : message.message) + ":" + mediaType;
     }
 
     private void rebuildGroups() {
