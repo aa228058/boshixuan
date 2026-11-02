@@ -11939,41 +11939,76 @@ private void showRealActivityPage() {
     mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
     final int currentAccount = profileActivity.getCurrentAccount();
-    FriendActivityPage activityPage = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
+    final FriendActivityPage[] pageHolder = new FriendActivityPage[1];
+    final FriendActivityAdapter[] adapterHolder = new FriendActivityAdapter[1];
+    final android.widget.ListView[] listHolder = new android.widget.ListView[1];
+    final boolean[] hasMoreHolder = new boolean[]{false};
+
+    pageHolder[0] = new FriendActivityPage(currentAccount, dialog_id, new FriendActivityPage.Callback() {
         @Override
         public void onResult(ArrayList<TLRPC.Message> messages, boolean hasMore) {
             if (mActivityOverlay == null || getContext() == null) return;
-            mActivityOverlay.removeAllViews();
+            hasMoreHolder[0] = hasMore;
 
-            if (messages == null || messages.isEmpty()) {
-                android.widget.TextView tv = new android.widget.TextView(getContext());
-                tv.setText("近期没有发言");
-                tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
-                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, android.view.Gravity.CENTER));
-                return;
+            if (listHolder[0] == null) {
+                mActivityOverlay.removeAllViews();
+                if ((messages == null || messages.isEmpty()) && !hasMore) {
+                    android.widget.TextView tv = new android.widget.TextView(getContext());
+                    tv.setText("近期没有发言");
+                    tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                    mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, android.view.Gravity.CENTER));
+                    return;
+                }
+
+                android.widget.ListView listView = new android.widget.ListView(getContext());
+                listView.setDivider(null);
+                listView.setDividerHeight(0);
+                adapterHolder[0] = new FriendActivityAdapter(currentAccount,
+                        messages == null ? new ArrayList<>() : new ArrayList<>(messages), profileActivity);
+                listView.setAdapter(adapterHolder[0]);
+                listView.setVerticalScrollBarEnabled(true);
+                listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+                    @Override
+                    public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
+                    }
+
+                    @Override
+                    public void onScroll(android.widget.AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+                        if (hasMoreHolder[0] && totalItemCount > 0
+                                && firstVisibleItem + visibleItemCount >= totalItemCount - 5
+                                && pageHolder[0] != null) {
+                            pageHolder[0].loadMore();
+                        }
+                    }
+                });
+                listView.setOnTouchListener((view, event) -> {
+                    android.view.ViewParent parent = view.getParent();
+                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN
+                            || event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+                        if (parent != null) {
+                            parent.requestDisallowInterceptTouchEvent(true);
+                        }
+                    } else if (event.getAction() == android.view.MotionEvent.ACTION_UP
+                            || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                        if (parent != null) {
+                            parent.requestDisallowInterceptTouchEvent(false);
+                        }
+                    }
+                    return false;
+                });
+                listHolder[0] = listView;
+                mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+            } else if (adapterHolder[0] != null) {
+                adapterHolder[0].setMessages(messages == null ? new ArrayList<>() : messages);
             }
 
-            android.widget.ListView listView = new android.widget.ListView(getContext());
-            listView.setDivider(null);
-            listView.setDividerHeight(0);
-            listView.setAdapter(new FriendActivityAdapter(currentAccount, messages, profileActivity));
-            listView.setVerticalScrollBarEnabled(true);
-            listView.setOnTouchListener((view, event) -> {
-                android.view.ViewParent parent = view.getParent();
-                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN
-                        || event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
-                    if (parent != null) {
-                        parent.requestDisallowInterceptTouchEvent(true);
-                    }
-                } else if (event.getAction() == android.view.MotionEvent.ACTION_UP
-                        || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
-                    if (parent != null) {
-                        parent.requestDisallowInterceptTouchEvent(false);
-                    }
-                }
-                return false;
-            });
-            mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+            // If a batch contains no matching messages, continue paging rather than leaving
+            // the user with an empty list that cannot generate a scroll event.
+            if ((messages == null || messages.isEmpty()) && hasMore && pageHolder[0] != null) {
+                pageHolder[0].loadMore();
+            }
         }
 
         @Override
@@ -11987,6 +12022,6 @@ private void showRealActivityPage() {
             }
         }
     });
-    activityPage.loadFirstPage();
+    pageHolder[0].loadFirstPage();
 }
 }
