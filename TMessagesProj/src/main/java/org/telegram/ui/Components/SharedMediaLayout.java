@@ -11975,9 +11975,6 @@ private void showRealActivityPage() {
                 });
                 emptyViewHolder[0] = emptyView;
                 listView.setEmptyView(emptyView);
-                mActivityOverlay.addView(emptyView, org.telegram.ui.Components.LayoutHelper.createFrame(
-                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
-                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
                 listView.setVerticalScrollBarEnabled(true);
                 listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
                     @Override
@@ -12010,6 +12007,9 @@ private void showRealActivityPage() {
                 });
                 listHolder[0] = listView;
                 mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+                mActivityOverlay.addView(emptyViewHolder[0], org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
             } else if (adapterHolder[0] != null) {
