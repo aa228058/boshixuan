@@ -137,7 +137,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
     private static final int ITEM_PERFORMANCE_MONITOR = 89, ITEM_DOWNLOAD_SPEED_HUD = 90;
     private static final int ITEM_RANDOM_REPLY_GROUPS = 91;
     private static final int ITEM_USER_BROADCAST = 92;
-    private static final int ITEM_SYNC_SWITCHES = 93, ITEM_SECURITY_CHECK = 94;
+    private static final int ITEM_SYNC_SWITCHES = 93, ITEM_SECURITY_CHECK = 94, ITEM_GROUP_BROADCAST_TASKS = 95;
     private static final int ITEM_COMMON_CLEAR_CACHE = 20001, ITEM_COMMON_PROXY = 20002,
             ITEM_COMMON_ACCOUNT = 20003, ITEM_COMMON_PRIVACY = 20004;
 
@@ -319,7 +319,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 return MangoFeatureRegistry.PRIVACY;
             case 12: case 14: case 15: case 17: case 18: case 38: case 43: case 56: case ITEM_DOWNLOAD_RETENTION: case ITEM_DOWNLOAD_SPEED_HUD:
                 return MangoFeatureRegistry.MEDIA;
-            case 10: case 27: case 28: case 29: case 30: case 42: case 45: case 46: case 52: case ITEM_RANDOM_REPLY_GROUPS: case ITEM_USER_BROADCAST:
+            case 10: case 27: case 28: case 29: case 30: case 42: case 45: case 46: case 52: case ITEM_RANDOM_REPLY_GROUPS: case ITEM_USER_BROADCAST: case ITEM_GROUP_BROADCAST_TASKS:
                 return MangoFeatureRegistry.AUTOMATION;
             case 7: case 9: case 13: case 20: case 21: case 23: case 24: case 25: case 26: case 31: case 32: case 35: case 36: case 39: case 44: case 47: case ITEM_BUILTIN_THEMES: case ITEM_UNIFIED_TAB: case ITEM_UNIFIED_INBOX: case ITEM_RESTRICTION_TITLE:
                 return MangoFeatureRegistry.APPEARANCE;
@@ -542,6 +542,8 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 getString(R.string.BroadcastToGroupsTitle),
                 getString(R.string.BroadcastToGroupsSummary)
         ));
+        items.add(UItem.asButton(ITEM_GROUP_BROADCAST_TASKS, R.drawable.msg_recent,
+                "群发任务进度", "查看正在发送的任务和历史发送记录"));
         items.add(UItem.asSwitch(ITEM_ID_LOCAL_VIRTUAL_GIFT_BUY, getString(R.string.LocalVirtualGiftBuyTitle)).setChecked(SharedConfig.isLocalVirtualGiftBuyEnabled()));
         items.add(UItem.asButton(
                 ITEM_ID_DOWNLOAD_SPEED,
@@ -881,6 +883,9 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 return;
             case ITEM_ID_BROADCAST_TO_GROUPS:
                 showBroadcastToGroupsDialog();
+                return;
+            case ITEM_GROUP_BROADCAST_TASKS:
+                showBroadcastTasksDialog();
                 return;
             case ITEM_ID_LOCAL_VIRTUAL_GIFT_BUY:
                 enabled = !SharedConfig.isLocalVirtualGiftBuyEnabled();
