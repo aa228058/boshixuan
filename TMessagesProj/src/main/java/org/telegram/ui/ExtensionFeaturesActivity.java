@@ -1226,161 +1226,190 @@ public class ExtensionFeaturesActivity extends BaseFragment {
     private void showBroadcastToGroupsDialog() {
         Context context = getParentActivity();
         if (context == null) return;
-
         LinearLayout container = new LinearLayout(context);
         container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), 0);
-
-        TextView hint = new TextView(context);
-        hint.setText(getString(R.string.BroadcastToGroupsInputInfo));
-        hint.setTextSize(13);
-        hint.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        container.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 12));
-
+        container.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(8), AndroidUtilities.dp(20), AndroidUtilities.dp(4));
+        TextView intro = new TextView(context);
+        intro.setText(getString(R.string.BroadcastToGroupsInputInfo));
+        intro.setTextSize(14);
+        intro.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        intro.setLineSpacing(AndroidUtilities.dp(2), 1f);
+        container.addView(intro, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 12));
+        TextView label = new TextView(context);
+        label.setText("群发内容");
+        label.setTextSize(14);
+        label.setTypeface(AndroidUtilities.bold());
+        label.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+        container.addView(label, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 7));
         EditTextBoldCursor editText = new EditTextBoldCursor(context);
-        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-        editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        editText.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackground)));
+        editText.setTextSize(16);
+        editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+        editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        editText.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackground, resourceProvider)));
         editText.setHintText(getString(R.string.BroadcastToGroupsHint));
-        editText.setMinLines(4);
-        editText.setMaxLines(8);
+        editText.setMinLines(5); editText.setMaxLines(9); editText.setGravity(Gravity.TOP | Gravity.START);
         editText.setImeOptions(EditorInfo.IME_ACTION_DONE);
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        editText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(Math.max(1, Math.min(4096, getMessagesController().maxMessageLength)))});
         editText.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
-        container.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-
-        TextView charCount = new TextView(context);
-        charCount.setText("0 / " + Math.min(4096, getMessagesController().maxMessageLength));
-        charCount.setTextSize(12);
-        charCount.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        charCount.setGravity(Gravity.RIGHT);
-        container.addView(charCount, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 6, 0, 0));
+        container.addView(editText, LayoutHelper.createLinear(-1, -2));
+        TextView count = new TextView(context);
+        count.setText("0 / " + Math.min(4096, getMessagesController().maxMessageLength));
+        count.setTextSize(12); count.setGravity(Gravity.RIGHT);
+        count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        container.addView(count, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 12));
         editText.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                charCount.setText(s.length() + " / " + Math.min(4096, getMessagesController().maxMessageLength));
-            }
-            @Override public void afterTextChanged(Editable s) { }
+            @Override public void beforeTextChanged(CharSequence s, int start, int c, int a) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int c) { count.setText(s.length() + " / " + Math.min(4096, getMessagesController().maxMessageLength)); }
+            @Override public void afterTextChanged(Editable e) { }
         });
-
+        LinearLayout example = new LinearLayout(context);
+        example.setOrientation(LinearLayout.VERTICAL);
+        example.setPadding(AndroidUtilities.dp(13), AndroidUtilities.dp(11), AndroidUtilities.dp(13), AndroidUtilities.dp(11));
+        example.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_dialogBackgroundGray, resourceProvider)));
+        TextView exampleTitle = new TextView(context);
+        exampleTitle.setText("消息示例"); exampleTitle.setTextSize(13);
+        exampleTitle.setTypeface(AndroidUtilities.bold());
+        exampleTitle.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+        example.addView(exampleTitle, LayoutHelper.createLinear(-1, -2));
+        TextView exampleBody = new TextView(context);
+        exampleBody.setText("大家好！本周活动安排如下：\n周五 20:00 在线交流\n有兴趣的朋友可以在群里回复。");
+        exampleBody.setTextSize(13); exampleBody.setLineSpacing(AndroidUtilities.dp(2), 1f);
+        exampleBody.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        example.addView(exampleBody, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 0));
+        container.addView(example, LayoutHelper.createLinear(-1, -2));
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
-        builder.setTitle(getString(R.string.BroadcastToGroupsTitle));
-        builder.setView(container);
+        builder.setTitle(getString(R.string.BroadcastToGroupsTitle)).setView(container);
         builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-            String text = SendMessagesHelper.getTrimmedString(editText.getText().toString());
-            if (TextUtils.isEmpty(text)) {
-                Toast.makeText(context, getString(R.string.BroadcastToGroupsEmptyText), Toast.LENGTH_SHORT).show();
-                return;
-            }
-            ArrayList<Long> targetGroups = getBroadcastTargetGroups();
-            if (targetGroups.isEmpty()) {
-                Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show();
-                return;
-            }
-            showBroadcastToGroupsConfirm(text, targetGroups);
+            String message = SendMessagesHelper.getTrimmedString(editText.getText().toString());
+            if (TextUtils.isEmpty(message)) { Toast.makeText(context, getString(R.string.BroadcastToGroupsEmptyText), Toast.LENGTH_SHORT).show(); return; }
+            ArrayList<Long> groups = getBroadcastTargetGroups();
+            if (groups.isEmpty()) { Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show(); return; }
+            showBroadcastToGroupsConfirm(message, groups);
         });
         builder.setNegativeButton(getString(R.string.Cancel), null);
         showDialog(builder.create());
-        AndroidUtilities.runOnUIThread(() -> {
-            editText.requestFocus();
-            AndroidUtilities.showKeyboard(editText);
-        }, 120);
+        AndroidUtilities.runOnUIThread(() -> { editText.requestFocus(); AndroidUtilities.showKeyboard(editText); }, 120);
     }
 
     private void showBroadcastToGroupsConfirm(String text, ArrayList<Long> allGroups) {
-    Context context = getParentActivity();
-    if (context == null) return;
-
-    ArrayList<Long> validGroups = new ArrayList<>();
-    ArrayList<String> groupNames = new ArrayList<>();
-
-    for (long id : allGroups) {
-        TLRPC.Chat chat = getMessagesController().getChat(-id);
-        if (chat != null) {
-            validGroups.add(id);
-            groupNames.add(chat.title);
+        Context context = getParentActivity();
+        if (context == null) return;
+        ArrayList<Long> ids = new ArrayList<>();
+        ArrayList<String> names = new ArrayList<>();
+        for (long id : allGroups) {
+            TLRPC.Chat chat = getMessagesController().getChat(-id);
+            if (chat != null) { ids.add(id); names.add(chat.title == null ? "未命名群组" : chat.title); }
         }
+        if (ids.isEmpty()) { Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show(); return; }
+        LinearLayout content = new LinearLayout(context);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(8), AndroidUtilities.dp(20), AndroidUtilities.dp(4));
+        TextView intro = new TextView(context);
+        intro.setText("找到 " + ids.size() + " 个可发送消息的群组。默认全选，可取消不需要发送的群组。");
+        intro.setTextSize(14); intro.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        content.addView(intro, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 8));
+        android.widget.CheckBox all = new android.widget.CheckBox(context);
+        all.setText("全选群组"); all.setTextSize(14); all.setChecked(true);
+        all.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+        content.addView(all, LayoutHelper.createLinear(-1, 44));
+        ScrollView scroll = new ScrollView(context);
+        LinearLayout rows = new LinearLayout(context); rows.setOrientation(LinearLayout.VERTICAL);
+        ArrayList<android.widget.CheckBox> checks = new ArrayList<>();
+        for (String name : names) {
+            android.widget.CheckBox check = new android.widget.CheckBox(context);
+            check.setText(name); check.setTextSize(14); check.setChecked(true);
+            check.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+            rows.addView(check, LayoutHelper.createLinear(-1, 44)); checks.add(check);
+        }
+        scroll.addView(rows);
+        content.addView(scroll, LayoutHelper.createLinear(-1, Math.min(AndroidUtilities.dp(320), AndroidUtilities.dp(44) * checks.size())));
+        TextView count = new TextView(context);
+        count.setText("已选择 " + checks.size() + " / " + checks.size() + " 个群组");
+        count.setTextSize(12); count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+        content.addView(count, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+        Runnable refresh = () -> {
+            int selected = 0; for (android.widget.CheckBox check : checks) if (check.isChecked()) selected++;
+            count.setText("已选择 " + selected + " / " + checks.size() + " 个群组");
+            all.setOnCheckedChangeListener(null); all.setChecked(selected == checks.size());
+            all.setOnCheckedChangeListener((button, checked) -> {
+                for (android.widget.CheckBox item : checks) item.setChecked(checked);
+                count.setText("已选择 " + (checked ? checks.size() : 0) + " / " + checks.size() + " 个群组");
+            });
+        };
+        for (android.widget.CheckBox check : checks) check.setOnCheckedChangeListener((button, checked) -> refresh.run());
+        all.setOnCheckedChangeListener((button, checked) -> {
+            for (android.widget.CheckBox item : checks) item.setChecked(checked);
+            count.setText("已选择 " + (checked ? checks.size() : 0) + " / " + checks.size() + " 个群组");
+        });
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(context).setTitle("选择群组").setView(content)
+                .setPositiveButton(getString(R.string.OK), (d, which) -> {
+                    ArrayList<Long> selected = new ArrayList<>();
+                    for (int i = 0; i < checks.size(); i++) if (checks.get(i).isChecked()) selected.add(ids.get(i));
+                    if (selected.isEmpty()) { Toast.makeText(context, "请至少选择一个群组", Toast.LENGTH_SHORT).show(); return; }
+                    showIntervalInputDialog(text, selected);
+                }).setNegativeButton(getString(R.string.Cancel), null).create();
+        dialog.show();
     }
-
-    if (validGroups.isEmpty()) {
-        Toast.makeText(context, getString(R.string.BroadcastToGroupsNoGroups), Toast.LENGTH_SHORT).show();
-        return;
-    }
-
-    boolean[] checkedArray = new boolean[validGroups.size()];
-    for (int i = 0; i < checkedArray.length; i++) checkedArray[i] = true; // 默认全选
-
-    // 👇 关键修复：换成 Android 原生的 AlertDialog
-    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(context);
-    builder.setTitle("选择要群发的群组");
-    
-    // 多选列表
-    builder.setMultiChoiceItems(groupNames.toArray(new CharSequence[0]), checkedArray, (dialog, which, isChecked) -> {
-        checkedArray[which] = isChecked;
-    });
-
-    builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-        ArrayList<Long> selectedGroups = new ArrayList<>();
-        for (int i = 0; i < checkedArray.length; i++) {
-            if (checkedArray[i]) selectedGroups.add(validGroups.get(i));
-        }
-        
-        if (selectedGroups.isEmpty()) {
-            Toast.makeText(context, "未选择任何群组", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // 去弹出输入时间间隔的框
-        showIntervalInputDialog(text, selectedGroups);
-    });
-    builder.setNegativeButton(getString(R.string.Cancel), null);
-    builder.show(); // 👈 原生弹窗直接 show()
-}
 
 // 新增：设置最小/最大间隔
 private void showIntervalInputDialog(String text, ArrayList<Long> selectedGroups) {
     Context context = getParentActivity();
     if (context == null) return;
-
-    android.widget.LinearLayout layout = new android.widget.LinearLayout(context);
-    layout.setOrientation(android.widget.LinearLayout.VERTICAL);
-    layout.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), 0);
-
-    android.widget.TextView infoText = new android.widget.TextView(context);
-    infoText.setText("即将向选中的 " + selectedGroups.size() + " 个群组发送消息。\n请设置每条消息之间的随机间隔（秒）：");
-    infoText.setTextSize(16);
-    layout.addView(infoText);
-
+    LinearLayout layout = new LinearLayout(context);
+    layout.setOrientation(LinearLayout.VERTICAL);
+    layout.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(8), AndroidUtilities.dp(20), AndroidUtilities.dp(4));
+    TextView intro = new TextView(context);
+    intro.setText("已选择 " + selectedGroups.size() + " 个群组。设置每条消息之间的随机发送间隔。");
+    intro.setTextSize(14); intro.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+    layout.addView(intro, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 12));
+    LinearLayout card = new LinearLayout(context);
+    card.setOrientation(LinearLayout.VERTICAL);
+    card.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
+    card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackgroundGray, resourceProvider)));
+    TextView title = new TextView(context);
+    title.setText("发送间隔（秒）"); title.setTextSize(14); title.setTypeface(AndroidUtilities.bold());
+    title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourceProvider));
+    card.addView(title, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 8));
     android.widget.EditText minInput = new android.widget.EditText(context);
-    minInput.setHint("最小间隔（默认 5）");
-    minInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-    layout.addView(minInput);
-
+    minInput.setSingleLine(true); minInput.setText("5"); minInput.setHint("最小间隔");
+    minInput.setInputType(InputType.TYPE_CLASS_NUMBER); minInput.setTextSize(15);
+    minInput.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(10), AndroidUtilities.dp(8));
+    minInput.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_dialogBackground, resourceProvider)));
+    card.addView(minInput, LayoutHelper.createLinear(-1, 44, 0, 0, 0, 8));
     android.widget.EditText maxInput = new android.widget.EditText(context);
-    maxInput.setHint("最大间隔（默认 15）");
-    maxInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-    layout.addView(maxInput);
-
-    // 👇 这里也换成原生 AlertDialog
-    android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(context);
-    builder.setTitle(getString(R.string.BroadcastToGroupsWarningTitle));
-    builder.setView(layout);
-    builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
-        int minSec = 5;
-        int maxSec = 15;
-        try {
-            if (!android.text.TextUtils.isEmpty(minInput.getText())) minSec = Integer.parseInt(minInput.getText().toString());
-            if (!android.text.TextUtils.isEmpty(maxInput.getText())) maxSec = Integer.parseInt(maxInput.getText().toString());
-        } catch (Exception ignore) {}
-        
-        if (minSec < 1) minSec = 1;
-        if (maxSec <= minSec) maxSec = minSec + 1;
-
-        sendTextToGroups(text, selectedGroups, minSec, maxSec);
-    });
-    builder.setNegativeButton(getString(R.string.Cancel), null);
-    builder.show(); // 👈 原生弹窗直接 show()
+    maxInput.setSingleLine(true); maxInput.setText("15"); maxInput.setHint("最大间隔");
+    maxInput.setInputType(InputType.TYPE_CLASS_NUMBER); maxInput.setTextSize(15);
+    maxInput.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(10), AndroidUtilities.dp(8));
+    maxInput.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8), Theme.getColor(Theme.key_dialogBackground, resourceProvider)));
+    card.addView(maxInput, LayoutHelper.createLinear(-1, 44));
+    TextView preview = new TextView(context);
+    preview.setText("示例：每次发送前随机等待 5～15 秒。");
+    preview.setTextSize(12); preview.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
+    card.addView(preview, LayoutHelper.createLinear(-1, -2, 0, 9, 0, 0));
+    layout.addView(card, LayoutHelper.createLinear(-1, -2));
+    android.text.TextWatcher watcher = new TextWatcher() {
+        private void update() {
+            int min=5,max=15;
+            try { min=Integer.parseInt(minInput.getText().toString()); } catch(Exception ignored) { }
+            try { max=Integer.parseInt(maxInput.getText().toString()); } catch(Exception ignored) { }
+            min=Math.max(1,min); max=Math.max(min+1,max);
+            preview.setText("示例：每次发送前随机等待 " + min + "～" + max + " 秒。");
+        }
+        @Override public void beforeTextChanged(CharSequence s,int start,int count,int after) { }
+        @Override public void onTextChanged(CharSequence s,int start,int before,int count) { update(); }
+        @Override public void afterTextChanged(Editable e) { }
+    };
+    minInput.addTextChangedListener(watcher); maxInput.addTextChangedListener(watcher);
+    android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(context).setTitle(getString(R.string.BroadcastToGroupsWarningTitle))
+            .setView(layout).setPositiveButton(getString(R.string.OK), (d, which) -> {
+                int minSec=5,maxSec=15;
+                try { if (!TextUtils.isEmpty(minInput.getText())) minSec=Integer.parseInt(minInput.getText().toString()); } catch(Exception ignored) { }
+                try { if (!TextUtils.isEmpty(maxInput.getText())) maxSec=Integer.parseInt(maxInput.getText().toString()); } catch(Exception ignored) { }
+                if (minSec<1) minSec=1; if (maxSec<=minSec) maxSec=minSec+1;
+                sendTextToGroups(text, selectedGroups, minSec, maxSec);
+            }).setNegativeButton(getString(R.string.Cancel), null).create();
+    dialog.show();
 }
 
 private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int minSec, int maxSec) {
