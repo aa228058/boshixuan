@@ -12204,6 +12204,7 @@ private void showRealActivityPage(boolean display) {
         public void onError(String error) {
             if (requestGeneration == mActivityRequestGeneration && mActivityOverlay != null && getContext() != null) {
                 mActivityLoadStarted = false;
+                mActivityListView = null;
                 mActivityOverlay.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("活动加载失败\n" + error + "\n点击此处重试");
