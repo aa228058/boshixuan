@@ -900,8 +900,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean matchesReplyFilters(CrossAccountInboxStore.Entry reply) {
         if (!getSelectedInboxAccounts().contains(reply.account)) return false;
         java.util.HashSet<String> groups = getSelectedInboxGroups();
-        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.dialogId))
-                && !groups.contains(Long.toString(reply.dialogId))) return false;
+        // Group ids are only unique within an account. Never fall back to a
+        // bare dialog id here, or a selection in one account can match another.
+        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.dialogId))) return false;
         int type = getReplyTypeFilter();
         return type == 0 || reply.messageType == type;
     }
@@ -946,7 +947,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         java.util.HashSet<String> selected = getSelectedInboxGroups();
         boolean hasMatchingSelection = false;
         for (String id : ids) {
-            if (selected.contains(id) || selected.contains(id.substring(id.indexOf(':') + 1))) {
+            if (selected.contains(id)) {
                 hasMatchingSelection = true;
                 break;
             }
@@ -954,8 +955,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         for (int i = 0; i < ids.size(); i++) {
             labels[i] = labelsById.get(ids.get(i));
             // A stale selection must not leave every current group unchecked.
-            checked[i] = selected.isEmpty() || !hasMatchingSelection || selected.contains(ids.get(i))
-                    || selected.contains(ids.get(i).substring(ids.get(i).indexOf(':') + 1));
+            // Only account-qualified keys are valid; legacy bare dialog ids are ambiguous.
+            checked[i] = selected.isEmpty() || !hasMatchingSelection || selected.contains(ids.get(i));
         }
         new AlertDialog.Builder(getParentActivity())
                 .setTitle("选择群组（默认全部）")
