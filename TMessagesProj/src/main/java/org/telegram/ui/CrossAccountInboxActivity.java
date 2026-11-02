@@ -437,7 +437,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        items.add(UItem.asButton(ITEM_REPLY_MODE, R.drawable.msg_reply,
+        items.add(UItem.asButton(ITEM_REPLY_MODE, R.drawable.menu_reply,
                 replyInbox ? "返回会话列表" : "查看跨账号回复收件箱"));
         if (replyInbox) {
             items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
@@ -462,7 +462,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                         "快捷回复");
                 quickReply.object = reply;
                 items.add(quickReply);
-                UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.msg_check,
+                UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.mini_checklist_done,
                         reply.handled ? "标记为未处理" : "标记为已处理");
                 handled.object = reply;
                 items.add(handled);
