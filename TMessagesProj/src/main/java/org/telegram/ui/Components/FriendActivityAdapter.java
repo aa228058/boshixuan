@@ -1,6 +1,5 @@
 package org.telegram.ui.Components;
 
-import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -12,7 +11,6 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
@@ -26,7 +24,6 @@ import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.Map;
 
 public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
