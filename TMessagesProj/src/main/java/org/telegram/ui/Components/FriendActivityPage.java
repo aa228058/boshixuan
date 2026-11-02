@@ -161,6 +161,14 @@ public class FriendActivityPage {
     private void finishPage(boolean addedNew) {
         if (addedNew) {
             Collections.sort(allMessages, (m1, m2) -> {
+                TLRPC.Chat chat1 = MessagesController.getInstance(currentAccount).getChat(-m1.dialog_id);
+                TLRPC.Chat chat2 = MessagesController.getInstance(currentAccount).getChat(-m2.dialog_id);
+                String title1 = chat1 != null && chat1.title != null ? chat1.title : "";
+                String title2 = chat2 != null && chat2.title != null ? chat2.title : "";
+                int groupCompare = title1.compareToIgnoreCase(title2);
+                if (groupCompare != 0) {
+                    return groupCompare;
+                }
                 int dateCompare = Integer.compare(m2.date, m1.date);
                 return dateCompare != 0 ? dateCompare : Integer.compare(m2.id, m1.id);
             });
