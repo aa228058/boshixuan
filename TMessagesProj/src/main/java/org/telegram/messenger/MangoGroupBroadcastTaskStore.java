@@ -93,6 +93,8 @@ public final class MangoGroupBroadcastTaskStore {
             for (int i = 0; i < tasks.size(); i++) {
                 Task old = tasks.get(i);
                 if (old.id != taskId) continue;
+                // Ignore late callbacks after a task has reached a terminal state.
+                if (old.state == COMPLETED || old.state == CANCELLED) return;
                 int processed = Math.min(old.total, old.processed + 1);
                 int queuedCount = old.queued + (queued ? 1 : 0);
                 int failedCount = old.failed + (queued ? 0 : 1);
@@ -101,9 +103,11 @@ public final class MangoGroupBroadcastTaskStore {
                 String targetName = "群组 " + dialogId;
                 int targetIndex = old.targetIds.indexOf(dialogId);
                 if (targetIndex >= 0 && targetIndex < old.targetNames.size()) targetName = old.targetNames.get(targetIndex);
+                String errorText = error == null ? "未知错误" : error.replace("\n", " ").replace("\r", " ");
+                if (errorText.length() > 240) errorText = errorText.substring(0, 240) + "…";
                 String entry = new java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
                         .format(new java.util.Date()) + " · " + targetName + " · "
-                        + (queued ? "已提交发送队列" : "调用异常：" + (error == null ? "未知错误" : error));
+                        + (queued ? "已提交发送队列" : "调用异常：" + errorText);
                 logs.add(0, entry);
                 while (logs.size() > 100) logs.remove(logs.size() - 1);
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
