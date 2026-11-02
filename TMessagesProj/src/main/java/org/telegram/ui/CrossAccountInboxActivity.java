@@ -944,9 +944,17 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         CharSequence[] labels = new CharSequence[ids.size()];
         boolean[] checked = new boolean[ids.size()];
         java.util.HashSet<String> selected = getSelectedInboxGroups();
+        boolean hasMatchingSelection = false;
+        for (String id : ids) {
+            if (selected.contains(id) || selected.contains(id.substring(id.indexOf(':') + 1))) {
+                hasMatchingSelection = true;
+                break;
+            }
+        }
         for (int i = 0; i < ids.size(); i++) {
             labels[i] = labelsById.get(ids.get(i));
-            checked[i] = selected.isEmpty() || selected.contains(ids.get(i))
+            // A stale selection must not leave every current group unchecked.
+            checked[i] = selected.isEmpty() || !hasMatchingSelection || selected.contains(ids.get(i))
                     || selected.contains(ids.get(i).substring(ids.get(i).indexOf(':') + 1));
         }
         new AlertDialog.Builder(getParentActivity())
