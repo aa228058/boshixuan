@@ -12059,7 +12059,7 @@ private void showRealActivityPage(boolean display) {
     final int currentAccount = profileActivity.getCurrentAccount();
     final FriendActivityPage[] pageHolder = new FriendActivityPage[1];
     final FriendActivityAdapter[] adapterHolder = new FriendActivityAdapter[1];
-    final android.widget.ListView[] listHolder = new android.widget.ListView[1];
+    final RecyclerListView[] listHolder = new RecyclerListView[1];
     final android.widget.TextView[] emptyViewHolder = new android.widget.TextView[1];
     final boolean[] hasMoreHolder = new boolean[]{false};
 
@@ -12079,9 +12079,9 @@ private void showRealActivityPage(boolean display) {
                     return;
                 }
 
-                android.widget.ListView listView = new android.widget.ListView(getContext());
-                listView.setDivider(null);
-                listView.setDividerHeight(0);
+                RecyclerListView listView = new RecyclerListView(getContext());
+                listView.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false));
+                listView.setClipToPadding(false);
                 adapterHolder[0] = new FriendActivityAdapter(currentAccount,
                         messages == null ? new ArrayList<>() : new ArrayList<>(messages), profileActivity);
                 listView.setAdapter(adapterHolder[0]);
@@ -12094,15 +12094,16 @@ private void showRealActivityPage(boolean display) {
                 emptyViewHolder[0] = emptyView;
                 listView.setEmptyView(emptyView);
                 listView.setVerticalScrollBarEnabled(true);
-                listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+                listView.addOnScrollListener(new RecyclerView.OnScrollListener() {
                     @Override
-                    public void onScrollStateChanged(android.widget.AbsListView view, int scrollState) {
-                    }
-
-                    @Override
-                    public void onScroll(android.widget.AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+                    public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                        RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
+                        if (!(manager instanceof LinearLayoutManager)) return;
+                        LinearLayoutManager linearLayoutManager = (LinearLayoutManager) manager;
+                        int totalItemCount = recyclerView.getAdapter() == null ? 0 : recyclerView.getAdapter().getItemCount();
+                        int lastVisibleItem = linearLayoutManager.findLastVisibleItemPosition();
                         if (hasMoreHolder[0] && totalItemCount > 0
-                                && firstVisibleItem + visibleItemCount >= totalItemCount - 5
+                                && lastVisibleItem >= totalItemCount - 5
                                 && pageHolder[0] != null) {
                             pageHolder[0].loadMore();
                         }
