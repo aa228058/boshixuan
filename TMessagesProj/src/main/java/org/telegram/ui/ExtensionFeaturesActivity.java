@@ -1518,8 +1518,8 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     title.setTextSize(14);
                     title.setTypeface(AndroidUtilities.bold());
                     title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-                    String state = task.state == MangoGroupBroadcastTaskStore.SENDING ? "发送中"
-                            : task.state == MangoGroupBroadcastTaskStore.COMPLETED ? "已完成" : "应用中断";
+                    String state = task.state == MangoGroupBroadcastTaskStore.SENDING ? "处理中"
+                            : task.state == MangoGroupBroadcastTaskStore.COMPLETED ? "处理完成" : "应用中断";
                     title.setText(state + " · " + LocaleController.formatDateChat((int) (task.createdAt / 1000)));
                     card.addView(title, LayoutHelper.createLinear(-1, -2));
 
@@ -1529,7 +1529,21 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                     int progressPercent = task.total <= 0 ? 0 : Math.min(100, task.processed * 100 / task.total);
                     count.setText("已处理 " + task.processed + "/" + task.total + " · " + progressPercent + "% · 已加入发送队列 "
                             + task.queued + " · 异常 " + task.failed);
-                    card.addView(count, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 6));
+                    card.addView(count, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 2));
+
+                    TextView deliveryHint = new TextView(context);
+                    deliveryHint.setTextSize(11);
+                    deliveryHint.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                    deliveryHint.setText("已加入发送队列不代表对方最终收到");
+                    card.addView(deliveryHint, LayoutHelper.createLinear(-1, -2, 0, 2, 0, 6));
+
+                    if (task.state == MangoGroupBroadcastTaskStore.INTERRUPTED) {
+                        TextView interruptedHint = new TextView(context);
+                        interruptedHint.setTextSize(12);
+                        interruptedHint.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                        interruptedHint.setText("应用进程中断后，剩余群组不会自动续发");
+                        card.addView(interruptedHint, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 6));
+                    }
 
                     ProgressBar progress = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
                     progress.setMax(1000);
