@@ -305,14 +305,16 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         if (message.media instanceof TLRPC.TL_messageMediaDocument) {
             TLRPC.Document document = message.media.document;
             if (document == null) return "📎 文件消息";
-            for (TLRPC.DocumentAttribute attribute : document.attributes) {
-                if (attribute instanceof TLRPC.TL_documentAttributeVideo) return "🎬 视频消息";
-                if (attribute instanceof TLRPC.TL_documentAttributeAudio) return "🎵 音频消息";
-                if (attribute instanceof TLRPC.TL_documentAttributeAnimated) return "🎞 动图消息";
+            if (document.attributes != null) {
+                for (TLRPC.DocumentAttribute attribute : document.attributes) {
+                    if (attribute instanceof TLRPC.TL_documentAttributeVideo) return "🎬 视频消息";
+                    if (attribute instanceof TLRPC.TL_documentAttributeAudio) return "🎵 音频消息";
+                    if (attribute instanceof TLRPC.TL_documentAttributeAnimated) return "🎞 动图消息";
+                }
             }
             return "📎 文件消息";
         }
         if (message.media instanceof TLRPC.TL_messageMediaWebPage) return "🔗 网页链接";
-        return "[媒体消息]";
+        return "媒体消息";
     }
 }
