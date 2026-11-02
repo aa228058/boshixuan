@@ -12237,6 +12237,13 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
         }
+        // Backfill qualifying replies from every regular group history page.
+        // The matcher receives the page objects as candidates, so replies can be
+        // matched even when their original outgoing message is not in the cache yet.
+        if (mode == ChatActivity.MODE_DEFAULT && dialogId < 0
+                && !DialogObject.isEncryptedDialog(dialogId)) {
+            CrossAccountInboxStore.recordRepliesFromHistory(currentAccount, dialogId, objects);
+        }
         getFileLoader().checkMediaExistance(objects);
         if (MessageObject.canCreateStripedThubms()) {
             for (int i = 0; i < objects.size(); i++) {
