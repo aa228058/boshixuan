@@ -159,7 +159,9 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     @Override
     public boolean isEnabled(RecyclerView.ViewHolder holder) {
-        return false;
+        // Keep the RecyclerListView child enabled so its touch dispatcher can
+        // deliver clicks to the header/message views hosted inside the row.
+        return true;
     }
 
     @Override
