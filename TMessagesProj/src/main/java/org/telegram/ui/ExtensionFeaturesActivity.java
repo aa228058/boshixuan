@@ -1328,19 +1328,26 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         count.setText("已选择 " + checks.size() + " / " + checks.size() + " 个群组");
         count.setTextSize(12); count.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
         content.addView(count, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+        final boolean[] updatingSelection = {false};
         Runnable refresh = () -> {
-            int selected = 0; for (android.widget.CheckBox check : checks) if (check.isChecked()) selected++;
+            int selected = 0;
+            for (android.widget.CheckBox check : checks) if (check.isChecked()) selected++;
             count.setText("已选择 " + selected + " / " + checks.size() + " 个群组");
-            all.setOnCheckedChangeListener(null); all.setChecked(selected == checks.size());
-            all.setOnCheckedChangeListener((button, checked) -> {
-                for (android.widget.CheckBox item : checks) item.setChecked(checked);
-                count.setText("已选择 " + (checked ? checks.size() : 0) + " / " + checks.size() + " 个群组");
-            });
+            updatingSelection[0] = true;
+            all.setChecked(selected == checks.size());
+            updatingSelection[0] = false;
         };
-        for (android.widget.CheckBox check : checks) check.setOnCheckedChangeListener((button, checked) -> refresh.run());
+        for (android.widget.CheckBox check : checks) {
+            check.setOnCheckedChangeListener((button, checked) -> {
+                if (!updatingSelection[0]) refresh.run();
+            });
+        }
         all.setOnCheckedChangeListener((button, checked) -> {
+            if (updatingSelection[0]) return;
+            updatingSelection[0] = true;
             for (android.widget.CheckBox item : checks) item.setChecked(checked);
-            count.setText("已选择 " + (checked ? checks.size() : 0) + " / " + checks.size() + " 个群组");
+            updatingSelection[0] = false;
+            refresh.run();
         });
         android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(context).setTitle("选择群组").setView(content)
                 .setPositiveButton(getString(R.string.OK), (d, which) -> {
