@@ -1636,7 +1636,7 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
                         card.addView(actions, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 0));
                     }
 
-                    if (!task.logs.isEmpty()) { TextView recentLog = new TextView(context); recentLog.setTextSize(11); recentLog.setTextColor(Theme.getColor(Theme.key_dialogTextHint)); recentLog.setText("最近记录：" + task.logs.get(0)); card.addView(recentLog, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 0)); }
+                    if (!task.logs.isEmpty()) { TextView recentLog = new TextView(context); recentLog.setTextSize(11); recentLog.setTextColor(Theme.getColor(Theme.key_dialogTextLink)); recentLog.setText("最近记录：" + task.logs.get(0) + "（查看全部）"); recentLog.setOnClickListener(v -> { StringBuilder details = new StringBuilder(); for (int i = 0; i < task.logs.size(); i++) { if (i > 0) details.append("\\n"); details.append(task.logs.get(i)); } new AlertDialog.Builder(context, resourceProvider).setTitle("群发详细日志 · " + task.logs.size() + " 条").setMessage(details.toString()).setPositiveButton(getString(R.string.OK), null).show(); }); card.addView(recentLog, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 0)); }
                     if (!task.targetNames.isEmpty()) {
                         TextView targets = new TextView(context);
                         targets.setTextSize(12);
