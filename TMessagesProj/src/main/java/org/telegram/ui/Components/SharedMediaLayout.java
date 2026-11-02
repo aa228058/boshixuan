@@ -12019,12 +12019,31 @@ private void showRealActivityPage(boolean display) {
                         }
                     }
                 });
+                final float[] activityTouchStart = new float[2];
+                final boolean[] activityTouchDirectionDecided = new boolean[1];
                 listView.setOnTouchListener((view, event) -> {
                     android.view.ViewParent parent = view.getParent();
-                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN
-                            || event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                        activityTouchStart[0] = event.getX();
+                        activityTouchStart[1] = event.getY();
+                        activityTouchDirectionDecided[0] = false;
                         if (parent != null) {
+                            // Keep the parent from stealing the initial touch while the
+                            // list determines whether this is a vertical scroll or tab swipe.
                             parent.requestDisallowInterceptTouchEvent(true);
+                        }
+                    } else if (event.getAction() == android.view.MotionEvent.ACTION_MOVE
+                            && !activityTouchDirectionDecided[0]) {
+                        float dx = Math.abs(event.getX() - activityTouchStart[0]);
+                        float dy = Math.abs(event.getY() - activityTouchStart[1]);
+                        float touchSlop = android.view.ViewConfiguration.get(view.getContext()).getScaledTouchSlop();
+                        if (dx > touchSlop || dy > touchSlop) {
+                            activityTouchDirectionDecided[0] = true;
+                            if (parent != null) {
+                                // Vertical movement belongs to the activity list; horizontal
+                                // movement must remain available to switch profile tabs.
+                                parent.requestDisallowInterceptTouchEvent(dy >= dx);
+                            }
                         }
                     } else if (event.getAction() == android.view.MotionEvent.ACTION_UP
                             || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
