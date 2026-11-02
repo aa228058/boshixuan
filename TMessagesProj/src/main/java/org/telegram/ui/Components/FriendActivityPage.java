@@ -219,7 +219,17 @@ public class FriendActivityPage {
                                     }
                                 }
                                 if (oldestId != Integer.MAX_VALUE) {
-                                    chatOffsets.put(chatId, oldestId);
+                                    int previousOffset = chatOffsets.get(chatId);
+                                    // offset_id is exclusive and must move toward older IDs.
+                                    // If the server repeats the same/newer page, stop this chat
+                                    // rather than requesting the identical page forever.
+                                    if (previousOffset > 0 && oldestId >= previousOffset) {
+                                        finishedChats.add(chatId);
+                                    } else {
+                                        chatOffsets.put(chatId, oldestId);
+                                    }
+                                } else {
+                                    finishedChats.add(chatId);
                                 }
                                 if (msgs.messages.size() < 20) {
                                     finishedChats.add(chatId);
