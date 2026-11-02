@@ -56,7 +56,7 @@ import java.util.HashSet;
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
         NotificationCenter.NotificationCenterDelegate {
     public static final String SETTING_KEY = "cross_account_inbox";
-    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7, ITEM_SCOPE = 8;
+    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7, ITEM_SCOPE = 8, ITEM_SHOW_HANDLED = 9;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
     private ItemTouchHelper replySwipeHelper;
@@ -68,6 +68,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean cachedUnreadOnly;
     private boolean cachedHasMore;
     private boolean unreadOnly;
+    private boolean showHandledReplies;
     private boolean active;
     private boolean pendingSingleDialogRefresh;
     private int pendingAccount = -1;
@@ -431,18 +432,19 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
                 "回复筛选 · " + getReplyFilterSummary()));
         items.add(UItem.asSwitch(ITEM_UNREAD, getString(R.string.MangoUnifiedUnread)).setChecked(unreadOnly));
+        items.add(UItem.asSwitch(ITEM_SHOW_HANDLED, "显示已处理回复").setChecked(showHandledReplies));
 
         ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
         int shownReplies = 0;
         for (CrossAccountInboxStore.Entry reply : replies) {
-            if (!matchesReplyFilters(reply) || unreadOnly && reply.handled) continue;
+            if (!matchesReplyFilters(reply) || !showHandledReplies && reply.handled) continue;
             String accountLabel = "账号 " + (reply.account + 1);
             String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
             String typeLabel = reply.messageType == 2 ? "媒体回复" : "文字回复";
             String detail = accountLabel + " · " + typeLabel
                     + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
                     + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
-                    + "\\n" + reply.preview;
+                    + "\n" + reply.preview;
             UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
             row.subtext = detail;
             row.object = reply;
@@ -758,6 +760,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             unreadOnly = !unreadOnly;
             snapshotDirty = true;
             listView.adapter.update(true);
+        } else if (item.id == ITEM_SHOW_HANDLED) {
+            showHandledReplies = !showHandledReplies;
+            listView.adapter.update(true);
         } else if (item.id == ITEM_MORE) {
             for (int account : UserConfig.getActivatedAccounts()) {
                 MessagesController controller = MessagesController.getInstance(account);
@@ -918,6 +923,11 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     java.util.HashSet<String> values = new java.util.HashSet<>();
                     for (int i = 0; i < ids.size(); i++) if (checked[i]) values.add(ids.get(i));
+                    if (values.isEmpty()) {
+                        new AlertDialog.Builder(getParentActivity()).setMessage("至少选择一个群组，或勾选全部群组。")
+                                .setPositiveButton(android.R.string.ok, null).show();
+                        return;
+                    }
                     if (values.size() == ids.size()) values.clear();
                     ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
                             .edit().putStringSet(INBOX_GROUPS_KEY, values).apply();
