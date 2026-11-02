@@ -28,6 +28,7 @@ import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.CrossAccountInboxStore;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MangoSettings;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.SendMessagesHelper;
@@ -779,7 +780,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
 
     private java.util.HashSet<Integer> getSelectedInboxAccounts() {
         java.util.HashSet<Integer> selected = new java.util.HashSet<>();
-        String saved = MangoSettings.getString(UserConfig.selectedAccount, INBOX_SCOPE_KEY, "");
+        String saved = ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE).getString(INBOX_SCOPE_KEY, "");
         if (TextUtils.isEmpty(saved)) {
             for (int account : UserConfig.getActivatedAccounts()) selected.add(account);
             return selected;
@@ -796,19 +797,19 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
 
     private String getInboxScopeLabel() {
         java.util.HashSet<Integer> selected = getSelectedInboxAccounts();
-        int activeCount = UserConfig.getActivatedAccounts().size();
+        int activeCount = UserConfig.getActivatedAccounts().length;
         return selected.size() == activeCount ? "全部账号" : selected.size() + "/" + activeCount + " 个账号";
     }
 
     private void showInboxScopePicker() {
         if (getParentActivity() == null) return;
-        ArrayList<Integer> accounts = UserConfig.getActivatedAccounts();
-        if (accounts.isEmpty()) return;
+        int[] accounts = UserConfig.getActivatedAccounts();
+        if (accounts.length == 0) return;
         java.util.HashSet<Integer> selected = getSelectedInboxAccounts();
-        CharSequence[] labels = new CharSequence[accounts.size()];
-        boolean[] checked = new boolean[accounts.size()];
-        for (int i = 0; i < accounts.size(); i++) {
-            int account = accounts.get(i);
+        CharSequence[] labels = new CharSequence[accounts.length];
+        boolean[] checked = new boolean[accounts.length];
+        for (int i = 0; i < accounts.length; i++) {
+            int account = accounts[i];
             TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
             String name = user == null ? "账号 " + (account + 1) : UserObject.getUserName(user);
             labels[i] = name + "（账号 " + (account + 1) + "）";
@@ -821,10 +822,10 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     StringBuilder value = new StringBuilder();
                     int count = 0;
-                    for (int i = 0; i < accounts.size(); i++) {
+                    for (int i = 0; i < accounts.length; i++) {
                         if (!checked[i]) continue;
                         if (value.length() > 0) value.append(',');
-                        value.append(accounts.get(i));
+                        value.append(accounts[i]);
                         count++;
                     }
                     if (count == 0) {
@@ -833,7 +834,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                                 .setPositiveButton(android.R.string.ok, null).show();
                         return;
                     }
-                    MangoSettings.setString(UserConfig.selectedAccount, INBOX_SCOPE_KEY, value.toString());
+                    ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
+                            .edit().putString(INBOX_SCOPE_KEY, value.toString()).apply();
                     if (active && listView != null) listView.adapter.update(true);
                 }).show();
     }
