@@ -12167,9 +12167,20 @@ private void showRealActivityPage(boolean display) {
                 mActivityLoadStarted = false;
                 mActivityOverlay.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
-                tv.setText("加载失败: " + error);
+                tv.setText("活动加载失败\n" + error + "\n点击此处重试");
+                tv.setGravity(android.view.Gravity.CENTER);
+                tv.setLineSpacing(org.telegram.messenger.AndroidUtilities.dp(3), 1f);
+                tv.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(16),
+                        org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(16));
                 tv.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
-                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, org.telegram.ui.Components.LayoutHelper.WRAP_CONTENT, android.view.Gravity.CENTER));
+                tv.setOnClickListener(v -> {
+                    if (getContext() == null || profileActivity == null) return;
+                    mActivityLoadStarted = false;
+                    showRealActivityPage(true);
+                });
+                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, android.view.Gravity.CENTER));
             }
         }
     });
