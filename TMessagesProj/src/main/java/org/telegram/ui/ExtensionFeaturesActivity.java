@@ -1353,6 +1353,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
 
         HashSet<Long> selectedIds = new HashSet<>(ids);
         final boolean[] updatingSelection = {false};
+        Runnable[] renderHolder = new Runnable[1];
         Runnable renderRows = () -> {
             String query = search.getText() == null ? "" : search.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
             rows.removeAllViews();
@@ -1371,7 +1372,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 check.setChecked(selectedIds.contains(id));
                 check.setOnCheckedChangeListener((button, checked) -> {
                     if (checked) selectedIds.add(id); else selectedIds.remove(id);
-                    updateSelection.run();
+                    renderHolder[0].run();
                 });
                 rows.addView(check, LayoutHelper.createLinear(-1, -2));
             }
@@ -1388,10 +1389,6 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 empty.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
                 rows.addView(empty, LayoutHelper.createLinear(-1, 48, 0, 8, 0, 0));
             }
-        };
-        Runnable[] renderHolder = new Runnable[1];
-        Runnable updateSelection = () -> {
-            if (!updatingSelection[0]) renderHolder[0].run();
         };
         renderHolder[0] = renderRows;
         search.addTextChangedListener(new TextWatcher() {
