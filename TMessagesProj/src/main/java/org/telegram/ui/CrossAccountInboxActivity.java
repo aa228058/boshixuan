@@ -431,7 +431,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 row.subtext = detail;
                 row.object = reply;
                 items.add(row);
-                UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_send,
+                UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_retry,
                         "快捷回复");
                 quickReply.object = reply;
                 items.add(quickReply);
