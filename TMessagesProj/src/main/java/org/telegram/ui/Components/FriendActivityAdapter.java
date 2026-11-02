@@ -117,6 +117,18 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         collapsedGroups.retainAll(existing);
     }
 
+    public long getGroupDialogIdAtPosition(int position) {
+        return position >= 0 && position < groups.size() ? groups.get(position).dialogId : 0;
+    }
+
+    public int findGroupPosition(long dialogId) {
+        if (dialogId == 0) return RecyclerView.NO_POSITION;
+        for (int i = 0; i < groups.size(); i++) {
+            if (groups.get(i).dialogId == dialogId) return i;
+        }
+        return RecyclerView.NO_POSITION;
+    }
+
     @Override
     public int getItemCount() {
         return groups.size();
