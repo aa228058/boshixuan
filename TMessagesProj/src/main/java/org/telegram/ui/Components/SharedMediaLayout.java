@@ -12125,6 +12125,8 @@ private void showRealActivityPage(boolean display) {
                         : layoutManager.findFirstVisibleItemPosition();
                 final long anchorDialogId = anchorPosition == RecyclerView.NO_POSITION
                         ? 0 : adapterHolder[0].getGroupDialogIdAtPosition(anchorPosition);
+                final int anchorMessageId = anchorPosition == RecyclerView.NO_POSITION
+                        ? 0 : adapterHolder[0].getMessageIdAtPosition(anchorPosition);
                 final android.view.View anchorView = anchorPosition == RecyclerView.NO_POSITION
                         ? null : layoutManager.findViewByPosition(anchorPosition);
                 final int anchorTop = anchorView == null ? 0 : anchorView.getTop();
@@ -12132,7 +12134,7 @@ private void showRealActivityPage(boolean display) {
                 if (layoutManager != null && anchorPosition != RecyclerView.NO_POSITION) {
                     listHolder[0].post(() -> {
                         if (listHolder[0] != null && listHolder[0].getAdapter() == adapterHolder[0]) {
-                            int restoredPosition = adapterHolder[0].findGroupPosition(anchorDialogId);
+                            int restoredPosition = adapterHolder[0].findPosition(anchorDialogId, anchorMessageId);
                             if (restoredPosition == RecyclerView.NO_POSITION
                                     && adapterHolder[0].getItemCount() > 0) {
                                 restoredPosition = Math.min(anchorPosition, adapterHolder[0].getItemCount() - 1);
