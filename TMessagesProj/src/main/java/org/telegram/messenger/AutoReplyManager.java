@@ -209,11 +209,7 @@ public class AutoReplyManager {
         }
         String normalizedKeyword = normalizeKeyword(keyword);
         if (TextUtils.isEmpty(normalizedKeyword)) {
-            rules.remove(index);
-            presetMessageCounts.remove(id);
-            saveLocked();
-            deleteLocalPresetMessages(id);
-            return true;
+            return false;
         }
         int duplicateIndex = findRuleIndexByKeywordLocked(normalizedKeyword);
         if (duplicateIndex >= 0 && duplicateIndex != index) {
