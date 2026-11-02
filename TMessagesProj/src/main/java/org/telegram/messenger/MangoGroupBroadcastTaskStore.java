@@ -111,7 +111,7 @@ public final class MangoGroupBroadcastTaskStore {
                 Task old = tasks.get(i);
                 if (old.id != taskId) continue;
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total, old.processed,
-                        old.queued, old.failed, state, old.targetNames, old.targetIds));
+                        old.queued, old.failed, state, old.targetNames, old.targetIds, old.minSeconds, old.maxSeconds));
                 if (state == SENDING) activeTasks.add(activeKey(account, taskId));
                 else activeTasks.remove(activeKey(account, taskId));
                 write(account, tasks);
