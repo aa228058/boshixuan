@@ -127,13 +127,27 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         return position >= 0 && position < rows.size() ? rows.get(position).group.dialogId : 0;
     }
 
-    public int findGroupPosition(long dialogId) {
+    public int getMessageIdAtPosition(int position) {
+        if (position < 0 || position >= rows.size()) return 0;
+        RowItem row = rows.get(position);
+        return row.isGroupHeader() ? 0 : row.message.id;
+    }
+
+    public int findPosition(long dialogId, int messageId) {
         if (dialogId == 0) return RecyclerView.NO_POSITION;
         for (int i = 0; i < rows.size(); i++) {
             RowItem row = rows.get(i);
-            if (row.group.dialogId == dialogId && row.isGroupHeader()) return i;
+            if (row.group.dialogId == dialogId
+                    && (messageId == 0 ? row.isGroupHeader()
+                    : !row.isGroupHeader() && row.message.id == messageId)) {
+                return i;
+            }
         }
         return RecyclerView.NO_POSITION;
+    }
+
+    public int findGroupPosition(long dialogId) {
+        return findPosition(dialogId, 0);
     }
 
     @Override
