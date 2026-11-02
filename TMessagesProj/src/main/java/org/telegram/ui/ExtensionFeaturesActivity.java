@@ -1278,8 +1278,11 @@ public class ExtensionFeaturesActivity extends BaseFragment {
         exampleBody.setTextColor(Theme.getColor(Theme.key_dialogTextHint, resourceProvider));
         example.addView(exampleBody, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 0));
         container.addView(example, LayoutHelper.createLinear(-1, -2));
+        ScrollView composerScroll = new ScrollView(context);
+        composerScroll.setFillViewport(false);
+        composerScroll.addView(container);
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
-        builder.setTitle(getString(R.string.BroadcastToGroupsTitle)).setView(container);
+        builder.setTitle(getString(R.string.BroadcastToGroupsTitle)).setView(composerScroll);
         builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
             String message = SendMessagesHelper.getTrimmedString(editText.getText().toString());
             if (TextUtils.isEmpty(message)) { Toast.makeText(context, getString(R.string.BroadcastToGroupsEmptyText), Toast.LENGTH_SHORT).show(); return; }
