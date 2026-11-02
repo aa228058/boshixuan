@@ -4239,7 +4239,6 @@ if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
 
 if (id == TAB_MANGO_ACTIVITY) {
     showRealActivityPage();
-    scrollSlidingTextTabStrip.selectTabWithId(mediaPages[0].selectedType, 1f);
     return;
 }
                 if (mediaPages[0].selectedType == id) {
@@ -11927,7 +11926,11 @@ private void showRealActivityPage() {
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
         mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
-        addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+        // Keep the profile tab strip above the activity content so other tabs remain clickable.
+        addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(
+                org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                android.view.Gravity.TOP, 0, 48, 0, 0));
     }
     mActivityOverlay.setVisibility(android.view.View.VISIBLE);
     mActivityOverlay.removeAllViews();
@@ -11954,6 +11957,22 @@ private void showRealActivityPage() {
             listView.setDivider(null);
             listView.setDividerHeight(0);
             listView.setAdapter(new FriendActivityAdapter(currentAccount, messages, profileActivity));
+            listView.setVerticalScrollBarEnabled(true);
+            listView.setOnTouchListener((view, event) -> {
+                android.view.ViewParent parent = view.getParent();
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN
+                        || event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+                    if (parent != null) {
+                        parent.requestDisallowInterceptTouchEvent(true);
+                    }
+                } else if (event.getAction() == android.view.MotionEvent.ACTION_UP
+                        || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                    if (parent != null) {
+                        parent.requestDisallowInterceptTouchEvent(false);
+                    }
+                }
+                return false;
+            });
             mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
         }
 
