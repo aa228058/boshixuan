@@ -220,6 +220,9 @@ public final class CrossAccountInboxStore {
             }
             if (changed) {
                 preferences(account, ownerId).edit().putString(KEY_MESSAGES, updated.toString()).apply();
+                // Keep the inbox UI in sync with handled-state writes as well.
+                NotificationCenter.getInstance(account).postNotificationName(
+                        NotificationCenter.crossAccountInboxUpdated);
             }
         });
     }
