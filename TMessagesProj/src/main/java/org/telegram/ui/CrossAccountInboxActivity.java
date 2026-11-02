@@ -3,6 +3,7 @@ package org.telegram.ui;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.app.AlertDialog;
 import android.graphics.Canvas;
 import android.os.Bundle;
@@ -55,7 +56,7 @@ import java.util.HashSet;
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
         NotificationCenter.NotificationCenterDelegate {
     public static final String SETTING_KEY = "cross_account_inbox";
-    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7;
+    private static final int ITEM_UNREAD = 1, ITEM_MORE = 2, ITEM_MESSAGE = 3, ITEM_REPLY_MODE = 4, ITEM_REPLY_ROW = 5, ITEM_REPLY_HANDLED = 6, ITEM_REPLY_SEND = 7, ITEM_SCOPE = 8;
     private final boolean inMainTabs;
     private UniversalRecyclerView listView;
     private ItemTouchHelper replySwipeHelper;
@@ -417,9 +418,13 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         items.add(UItem.asButton(ITEM_REPLY_MODE, R.drawable.msg_reply,
                 replyInbox ? "返回会话列表" : "查看跨账号回复收件箱"));
         if (replyInbox) {
+            items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
+                    "汇总范围：" + getInboxScopeLabel()));
+            java.util.HashSet<Integer> selectedAccounts = getSelectedInboxAccounts();
             ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
             int shown = 0;
             for (CrossAccountInboxStore.Entry reply : replies) {
+                if (!selectedAccounts.contains(reply.account)) continue;
                 if (unreadOnly && reply.handled) continue;
                 String accountLabel = "账号 " + (reply.account + 1);
                 String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
@@ -737,6 +742,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         if (item.id == ITEM_REPLY_MODE) {
             replyInbox = !replyInbox;
             listView.adapter.update(true);
+        } else if (item.id == ITEM_SCOPE) {
+            showInboxScopePicker();
         } else if (item.id == ITEM_REPLY_ROW && item.object instanceof CrossAccountInboxStore.Entry) {
             openReply((CrossAccountInboxStore.Entry) item.object);
         } else if (item.id == ITEM_REPLY_SEND && item.object instanceof CrossAccountInboxStore.Entry) {
@@ -767,6 +774,69 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         } else if (item.id == ITEM_MESSAGE && item.object instanceof Entry) {
             open((Entry) item.object);
         }
+    }
+
+    private static final String INBOX_SCOPE_KEY = "cross_account_inbox_scope_accounts";
+
+    private java.util.HashSet<Integer> getSelectedInboxAccounts() {
+        java.util.HashSet<Integer> selected = new java.util.HashSet<>();
+        String saved = MangoSettings.getString(UserConfig.selectedAccount, INBOX_SCOPE_KEY, "");
+        if (TextUtils.isEmpty(saved)) {
+            for (int account : UserConfig.getActivatedAccounts()) selected.add(account);
+            return selected;
+        }
+        String[] values = saved.split(",");
+        for (String value : values) {
+            try {
+                selected.add(Integer.parseInt(value));
+            } catch (Exception ignore) {
+            }
+        }
+        return selected;
+    }
+
+    private String getInboxScopeLabel() {
+        java.util.HashSet<Integer> selected = getSelectedInboxAccounts();
+        int activeCount = UserConfig.getActivatedAccounts().size();
+        return selected.size() == activeCount ? "全部账号" : selected.size() + "/" + activeCount + " 个账号";
+    }
+
+    private void showInboxScopePicker() {
+        if (getParentActivity() == null) return;
+        ArrayList<Integer> accounts = UserConfig.getActivatedAccounts();
+        if (accounts.isEmpty()) return;
+        java.util.HashSet<Integer> selected = getSelectedInboxAccounts();
+        CharSequence[] labels = new CharSequence[accounts.size()];
+        boolean[] checked = new boolean[accounts.size()];
+        for (int i = 0; i < accounts.size(); i++) {
+            int account = accounts.get(i);
+            TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
+            String name = user == null ? "账号 " + (account + 1) : UserObject.getUserName(user);
+            labels[i] = name + "（账号 " + (account + 1) + "）";
+            checked[i] = selected.contains(account);
+        }
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("选择汇总账号")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    StringBuilder value = new StringBuilder();
+                    int count = 0;
+                    for (int i = 0; i < accounts.size(); i++) {
+                        if (!checked[i]) continue;
+                        if (value.length() > 0) value.append(',');
+                        value.append(accounts.get(i));
+                        count++;
+                    }
+                    if (count == 0) {
+                        new AlertDialog.Builder(getParentActivity())
+                                .setMessage("至少选择一个账号。")
+                                .setPositiveButton(android.R.string.ok, null).show();
+                        return;
+                    }
+                    MangoSettings.setString(UserConfig.selectedAccount, INBOX_SCOPE_KEY, value.toString());
+                    if (active && listView != null) listView.adapter.update(true);
+                }).show();
     }
 
     private MessageObject findReplyMessage(CrossAccountInboxStore.Entry row) {
