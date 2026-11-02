@@ -144,19 +144,19 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     private View createGroupView(GroupItem group, android.content.Context context) {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(10),
-                AndroidUtilities.dp(12), AndroidUtilities.dp(8));
-        card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(16),
+        card.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(8),
+                AndroidUtilities.dp(10), AndroidUtilities.dp(6));
+        card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(14),
                 Theme.getColor(Theme.key_windowBackgroundWhite)));
         card.setClipToOutline(true);
 
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(0, 0, 0, AndroidUtilities.dp(8));
+        header.setPadding(0, 0, 0, AndroidUtilities.dp(6));
 
         BackupImageView groupAvatar = new BackupImageView(context);
-        groupAvatar.setRoundRadius(AndroidUtilities.dp(24));
+        groupAvatar.setRoundRadius(AndroidUtilities.dp(21));
         AvatarDrawable groupDrawable = new AvatarDrawable();
         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-group.dialogId);
         if (chat != null) groupDrawable.setInfo(chat);
@@ -165,7 +165,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             ImageLocation location = ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL);
             if (location != null) groupAvatar.setImage(location, "50_50", groupDrawable, chat);
         }
-        header.addView(groupAvatar, LayoutHelper.createLinear(48, 48));
+        header.addView(groupAvatar, LayoutHelper.createLinear(42, 42));
 
         LinearLayout titleColumn = new LinearLayout(context);
         titleColumn.setOrientation(LinearLayout.VERTICAL);
@@ -181,19 +181,14 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         title.setEllipsize(TextUtils.TruncateAt.END);
         titleColumn.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
-        TextView count = new TextView(context);
-        count.setText("最近发言 · " + group.messages.size() + " 条消息");
-        count.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        count.setTextSize(12);
-        titleColumn.addView(count, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-        header.addView(titleColumn, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+         header.addView(titleColumn, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
         TextView arrow = new TextView(context);
         arrow.setText(collapsedGroups.contains(group.dialogId) ? "⌄" : "⌃");
-        arrow.setTextSize(22);
+        arrow.setTextSize(20);
         arrow.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
         arrow.setGravity(Gravity.CENTER);
-        header.addView(arrow, LayoutHelper.createLinear(28, 42));
+        header.addView(arrow, LayoutHelper.createLinear(28, 38));
         header.setOnClickListener(v -> {
             if (collapsedGroups.contains(group.dialogId)) {
                 collapsedGroups.remove(group.dialogId);
@@ -214,13 +209,13 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
             for (TLRPC.Message message : group.messages) {
                 card.addView(createMessageRow(context, message),
-                        LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(48)));
+                        LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, AndroidUtilities.dp(46)));
             }
         }
 
         FrameLayout outer = new FrameLayout(context);
-        outer.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(5),
-                AndroidUtilities.dp(10), AndroidUtilities.dp(5));
+        outer.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(4),
+                AndroidUtilities.dp(8), AndroidUtilities.dp(4));
         outer.addView(card, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return outer;
