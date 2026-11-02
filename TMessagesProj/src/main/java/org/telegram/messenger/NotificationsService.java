@@ -79,8 +79,25 @@ public class NotificationsService extends Service {
     }
 
     private void releaseLocks() {
-        try { if (cpuWakeLock != null && cpuWakeLock.isHeld()) cpuWakeLock.release(); } catch (Throwable ignore) {}
-        try { if (wifiLock != null && wifiLock.isHeld()) wifiLock.release(); } catch (Throwable ignore) {}
+        try {
+            if (cpuWakeLock != null && cpuWakeLock.isHeld()) {
+                cpuWakeLock.release();
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            // Do not retain a released static lock: the next service instance must
+            // create and acquire a fresh lock in acquireLocks().
+            cpuWakeLock = null;
+        }
+
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) {
+                wifiLock.release();
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            wifiLock = null;
+        }
     }
 
     private void checkConnectionAndWakeup() {
