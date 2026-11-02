@@ -4234,6 +4234,9 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             public void onPageSelected(int id, boolean forward) {
             // 如果切换到其他标签，隐藏“活动”覆盖层
 if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
+    // Invalidate pending activity requests when leaving the tab so stale
+    // callbacks cannot update the hidden overlay or replace newer content.
+    mActivityRequestGeneration++;
     mActivityOverlay.setVisibility(android.view.View.GONE);
 }
 
