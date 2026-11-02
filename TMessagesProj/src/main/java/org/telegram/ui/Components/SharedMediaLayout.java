@@ -11940,16 +11940,19 @@ private void showRealActivityPage(boolean display) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
         mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
     }
-    // Keep the content attached below the persistent profile tab strip.
-    if (mediaPages[0] != null && mActivityOverlay.getParent() != mediaPages[0]) {
+    // Attach to the stable SharedMediaLayout instead of mediaPages[0].
+    // The two MediaPage instances are swapped after tab animations; attaching
+    // the activity overlay to either page makes it disappear when that page is hidden.
+    if (mActivityOverlay.getParent() != this) {
         if (mActivityOverlay.getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) mActivityOverlay.getParent()).removeView(mActivityOverlay);
         }
-        mediaPages[0].addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(
+        addView(mActivityOverlay, org.telegram.ui.Components.LayoutHelper.createFrame(
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 android.view.Gravity.TOP, 0, 48, 0, 0));
     }
+    mActivityOverlay.bringToFront();
     mActivityOverlay.setVisibility(display ? android.view.View.VISIBLE : android.view.View.GONE);
 
     // A preload may still be in flight, or its result may already be cached.
