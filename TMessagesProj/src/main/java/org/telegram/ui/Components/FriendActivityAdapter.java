@@ -225,6 +225,8 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         timeView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
         timeView.setTextSize(12);
         timeView.setSingleLine(true);
+        timeView.setMaxWidth(AndroidUtilities.dp(92));
+        timeView.setEllipsize(TextUtils.TruncateAt.END);
         timeView.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
         row.addView(timeView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
 
