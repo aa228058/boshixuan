@@ -12085,6 +12085,26 @@ private void showRealActivityPage(boolean display) {
                     return;
                 }
 
+                if (messages == null || messages.isEmpty()) {
+                    android.widget.TextView loadingMoreState = new android.widget.TextView(getContext());
+                    loadingMoreState.setText("暂时没有匹配消息，点击此处继续加载");
+                    loadingMoreState.setGravity(android.view.Gravity.CENTER);
+                    loadingMoreState.setTextSize(14);
+                    loadingMoreState.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(
+                            org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
+                    loadingMoreState.setOnClickListener(v -> {
+                        if (pageHolder[0] != null && hasMoreHolder[0]) {
+                            loadingMoreState.setText("正在加载…");
+                            pageHolder[0].loadMore();
+                        }
+                    });
+                    mActivityOverlay.addView(loadingMoreState,
+                            org.telegram.ui.Components.LayoutHelper.createFrame(
+                                    org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                                    org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
+                    return;
+                }
+
                 RecyclerListView listView = new RecyclerListView(getContext());
                 listView.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false));
                 listView.setScrollingTouchSlop(RecyclerView.TOUCH_SLOP_PAGING);
