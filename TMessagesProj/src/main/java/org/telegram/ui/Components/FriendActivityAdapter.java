@@ -21,7 +21,6 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
 
-import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
@@ -243,7 +242,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         Calendar today = Calendar.getInstance();
         boolean sameDay = messageCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)
                 && messageCalendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR);
-        DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
+        java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm", Locale.getDefault());
         if (sameDay) return timeFormat.format(time);
 
         java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("M月d日", Locale.getDefault());
