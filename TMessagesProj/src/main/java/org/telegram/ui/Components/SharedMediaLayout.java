@@ -4234,9 +4234,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             public void onPageSelected(int id, boolean forward) {
             // 如果切换到其他标签，隐藏“活动”覆盖层
 if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
-    // Invalidate pending activity requests when leaving the tab so stale
-    // callbacks cannot update the hidden overlay or replace newer content.
-    mActivityRequestGeneration++;
+    // Keep loading in the background; the result is cached in the hidden page.
     mActivityOverlay.setVisibility(android.view.View.GONE);
 }
 
@@ -11923,18 +11921,26 @@ if (!isStoriesView()) {
     }
     private android.widget.FrameLayout mActivityOverlay;
 private int mActivityRequestGeneration;
+private boolean mActivityLoadStarted;
+
+public void preloadActivityPage() {
+    // Called as soon as the profile's SharedMediaLayout is created.
+    // Fetching starts before the user opens the Activity tab.
+    showRealActivityPage(false);
+}
 
 private void showRealActivityPage() {
-    final int requestGeneration = ++mActivityRequestGeneration;
+    showRealActivityPage(true);
+}
+
+private void showRealActivityPage(boolean display) {
     if (getContext() == null || profileActivity == null) return;
 
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
         mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
     }
-    // Attach activity content to the currently active media page, below the
-    // persistent profile tab strip. Re-parent it after page swaps so returning
-    // to Activity always displays the content in the active page.
+    // Keep the content attached below the persistent profile tab strip.
     if (mediaPages[0] != null && mActivityOverlay.getParent() != mediaPages[0]) {
         if (mActivityOverlay.getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) mActivityOverlay.getParent()).removeView(mActivityOverlay);
@@ -11944,7 +11950,15 @@ private void showRealActivityPage() {
                 org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                 android.view.Gravity.TOP, 0, 48, 0, 0));
     }
-    mActivityOverlay.setVisibility(android.view.View.VISIBLE);
+    mActivityOverlay.setVisibility(display ? android.view.View.VISIBLE : android.view.View.GONE);
+
+    // A preload may still be in flight, or its result may already be cached.
+    // Showing the tab must reuse that request/result rather than restart it.
+    if (mActivityLoadStarted) {
+        return;
+    }
+    mActivityLoadStarted = true;
+    final int requestGeneration = ++mActivityRequestGeneration;
     mActivityOverlay.removeAllViews();
 
     android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
@@ -12039,6 +12053,7 @@ private void showRealActivityPage() {
         @Override
         public void onError(String error) {
             if (requestGeneration == mActivityRequestGeneration && mActivityOverlay != null && getContext() != null) {
+                mActivityLoadStarted = false;
                 mActivityOverlay.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("加载失败: " + error);
