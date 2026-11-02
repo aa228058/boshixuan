@@ -144,9 +144,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 // Swipe right marks handled; swipe left restores the pending state.
                 CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
                         reply.messageId, direction == ItemTouchHelper.RIGHT);
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (active && listView != null) listView.adapter.update(true);
-                }, 250);
             }
         });
         replySwipeHelper.attachToRecyclerView(listView);
@@ -766,9 +763,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
             CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
                     reply.messageId, !reply.handled);
-            AndroidUtilities.runOnUIThread(() -> {
-                if (active && listView != null) listView.adapter.update(true);
-            }, 250);
         } else if (item.id == ITEM_UNREAD) {
             unreadOnly = !unreadOnly;
             if (replyInbox) listView.adapter.update(true);
