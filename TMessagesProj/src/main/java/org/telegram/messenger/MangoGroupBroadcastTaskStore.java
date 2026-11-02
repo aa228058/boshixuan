@@ -14,6 +14,8 @@ public final class MangoGroupBroadcastTaskStore {
     public static final int SENDING = 0;
     public static final int COMPLETED = 1;
     public static final int INTERRUPTED = 2;
+    public static final int PAUSED = 3;
+    public static final int CANCELLED = 4;
 
     private static final Object LOCK = new Object();
     private static final HashSet<String> activeTasks = new HashSet<>();
@@ -29,9 +31,10 @@ public final class MangoGroupBroadcastTaskStore {
         public final int failed;
         public final int state;
         public final ArrayList<String> targetNames;
+        public final ArrayList<Long> targetIds;
 
         Task(long id, long createdAt, String message, int total, int processed,
-                int queued, int failed, int state, ArrayList<String> targetNames) {
+                int queued, int failed, int state, ArrayList<String> targetNames, ArrayList<Long> targetIds) {
             this.id = id;
             this.createdAt = createdAt;
             this.message = message;
@@ -41,6 +44,7 @@ public final class MangoGroupBroadcastTaskStore {
             this.failed = failed;
             this.state = state;
             this.targetNames = targetNames;
+            this.targetIds = targetIds;
         }
     }
 
@@ -56,13 +60,14 @@ public final class MangoGroupBroadcastTaskStore {
                 "mango_group_broadcast_tasks_" + account, Context.MODE_PRIVATE);
     }
 
-    public static long create(int account, String message, ArrayList<String> targetNames) {
+    public static long create(int account, String message, ArrayList<String> targetNames, ArrayList<Long> targetIds) {
         synchronized (LOCK) {
             long id = System.currentTimeMillis();
             ArrayList<Task> tasks = read(account);
             while (containsTask(tasks, id)) id++;
             ArrayList<String> names = targetNames == null ? new ArrayList<>() : new ArrayList<>(targetNames);
-            tasks.add(0, new Task(id, System.currentTimeMillis(), message, names.size(), 0, 0, 0, SENDING, names));
+            ArrayList<Long> ids = targetIds == null ? new ArrayList<>() : new ArrayList<>(targetIds);
+            tasks.add(0, new Task(id, System.currentTimeMillis(), message, names.size(), 0, 0, 0, SENDING, names, ids));
             while (tasks.size() > MAX_HISTORY) tasks.remove(tasks.size() - 1);
             activeTasks.add(activeKey(account, id));
             write(account, tasks);
@@ -87,11 +92,34 @@ public final class MangoGroupBroadcastTaskStore {
                 int failedCount = old.failed + (queued ? 0 : 1);
                 int state = processed >= old.total ? COMPLETED : SENDING;
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
-                        processed, queuedCount, failedCount, state, old.targetNames));
+                        processed, queuedCount, failedCount, state, old.targetNames, old.targetIds));
                 if (state == COMPLETED) activeTasks.remove(activeKey(account, taskId));
                 write(account, tasks);
                 return;
             }
+        }
+    }
+
+    public static void setState(int account, long taskId, int state) {
+        synchronized (LOCK) {
+            ArrayList<Task> tasks = read(account);
+            for (int i = 0; i < tasks.size(); i++) {
+                Task old = tasks.get(i);
+                if (old.id != taskId) continue;
+                tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total, old.processed,
+                        old.queued, old.failed, state, old.targetNames, old.targetIds));
+                if (state == SENDING) activeTasks.add(activeKey(account, taskId));
+                else activeTasks.remove(activeKey(account, taskId));
+                write(account, tasks);
+                return;
+            }
+        }
+    }
+
+    public static Task getTask(int account, long taskId) {
+        synchronized (LOCK) {
+            for (Task task : read(account)) if (task.id == taskId) return task;
+            return null;
         }
     }
 
@@ -103,7 +131,7 @@ public final class MangoGroupBroadcastTaskStore {
                 Task task = tasks.get(i);
                 if (task.state == SENDING && !activeTasks.contains(activeKey(account, task.id))) {
                     tasks.set(i, new Task(task.id, task.createdAt, task.message, task.total,
-                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames));
+                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames, task.targetIds));
                     changed = true;
                 }
             }
@@ -120,14 +148,17 @@ public final class MangoGroupBroadcastTaskStore {
                 JSONObject item = array.optJSONObject(i);
                 if (item == null) continue;
                 ArrayList<String> names = new ArrayList<>();
+                ArrayList<Long> ids = new ArrayList<>();
                 JSONArray nameArray = item.optJSONArray("targetNames");
                 if (nameArray != null) {
                     for (int j = 0; j < nameArray.length(); j++) names.add(nameArray.optString(j, ""));
                 }
+                JSONArray idArray = item.optJSONArray("targetIds");
+                if (idArray != null) for (int j = 0; j < idArray.length(); j++) ids.add(idArray.optLong(j));
                 tasks.add(new Task(item.optLong("id"), item.optLong("createdAt"),
                         item.optString("message", ""), item.optInt("total"),
                         item.optInt("processed"), item.optInt("queued"), item.optInt("failed"),
-                        item.optInt("state"), names));
+                        item.optInt("state"), names, ids));
             }
         } catch (Exception e) {
             FileLog.e(e);
@@ -151,6 +182,9 @@ public final class MangoGroupBroadcastTaskStore {
                 JSONArray names = new JSONArray();
                 for (String name : task.targetNames) names.put(name);
                 item.put("targetNames", names);
+                JSONArray ids = new JSONArray();
+                for (Long id : task.targetIds) ids.put(id);
+                item.put("targetIds", ids);
                 array.put(item);
             } catch (Exception e) {
                 FileLog.e(e);
