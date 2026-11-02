@@ -53,7 +53,7 @@ public class NotificationsService extends Service {
     }
 
     private void acquireLocks() {
-        if (cpuWakeLock == null) {
+        if (cpuWakeLock == null || !cpuWakeLock.isHeld()) {
             try {
                 PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
                 if (pm != null) {
@@ -64,7 +64,7 @@ public class NotificationsService extends Service {
             } catch (Throwable e) { FileLog.e(e); }
         }
         
-        if (wifiLock == null) {
+        if (wifiLock == null || !wifiLock.isHeld()) {
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 if (wm != null) {
@@ -80,8 +80,18 @@ public class NotificationsService extends Service {
     }
 
     private void releaseLocks() {
-        try { if (cpuWakeLock != null && cpuWakeLock.isHeld()) cpuWakeLock.release(); } catch (Throwable ignore) {}
-        try { if (wifiLock != null && wifiLock.isHeld()) wifiLock.release(); } catch (Throwable ignore) {}
+        try {
+            if (cpuWakeLock != null && cpuWakeLock.isHeld()) cpuWakeLock.release();
+        } catch (Throwable ignore) {
+        } finally {
+            cpuWakeLock = null;
+        }
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+        } catch (Throwable ignore) {
+        } finally {
+            wifiLock = null;
+        }
     }
 
     private void checkConnectionAndWakeup() {
