@@ -18,6 +18,11 @@ public final class CrossAccountInboxReplyMatcher {
     }
 
     public static boolean isReplyToOwnGroupMessage(int account, long dialogId, MessageObject message) {
+        return isReplyToOwnGroupMessage(account, dialogId, message, null);
+    }
+
+    public static boolean isReplyToOwnGroupMessage(int account, long dialogId, MessageObject message,
+                                                   java.util.ArrayList<MessageObject> candidates) {
         if (message == null || message.messageOwner == null || message.messageOwner.out
                 || dialogId >= 0 || message.deleted || message.getDialogId() != dialogId) {
             return false;
@@ -49,6 +54,9 @@ public final class CrossAccountInboxReplyMatcher {
                 || target.getId() != reply.reply_to_msg_id || target.getDialogId() != dialogId) {
             target = findCachedMessage(controller, dialogId, reply.reply_to_msg_id);
         }
+        if (target == null) {
+            target = findCandidateMessage(candidates, dialogId, reply.reply_to_msg_id);
+        }
 
         // Never classify a message unless its exact referenced target is known
         // and that target was sent by the currently signed-in account.
@@ -56,6 +64,21 @@ public final class CrossAccountInboxReplyMatcher {
                 && target.getId() == reply.reply_to_msg_id
                 && target.getDialogId() == dialogId
                 && target.messageOwner.out;
+    }
+
+    private static MessageObject findCandidateMessage(java.util.ArrayList<MessageObject> candidates,
+                                                      long dialogId, int messageId) {
+        if (candidates == null) {
+            return null;
+        }
+        for (int i = 0; i < candidates.size(); i++) {
+            MessageObject candidate = candidates.get(i);
+            if (candidate != null && candidate.messageOwner != null && !candidate.deleted
+                    && candidate.getId() == messageId && candidate.getDialogId() == dialogId) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private static MessageObject findCachedMessage(MessagesController controller, long dialogId, int messageId) {
