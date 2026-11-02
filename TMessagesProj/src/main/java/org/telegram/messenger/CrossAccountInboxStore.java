@@ -63,8 +63,13 @@ public final class CrossAccountInboxStore {
 
     /** Called from MessagesController for each newly integrated, non-scheduled message. */
     public static void recordReply(int account, long dialogId, MessageObject message) {
+        recordReply(account, dialogId, message, null);
+    }
+
+    private static void recordReply(int account, long dialogId, MessageObject message,
+                                    ArrayList<MessageObject> candidates) {
         if (message == null || message.messageOwner == null || message.messageOwner.out
-                || !CrossAccountInboxReplyMatcher.isReplyToOwnGroupMessage(account, dialogId, message)) {
+                || !CrossAccountInboxReplyMatcher.isReplyToOwnGroupMessage(account, dialogId, message, candidates)) {
             return;
         }
 
@@ -106,6 +111,16 @@ public final class CrossAccountInboxStore {
         final String savedPreview = preview;
         storageQueue.postRunnable(() -> persistReply(account, ownerId, dialogId, messageId,
                 replyToMessageId, date, senderId, savedGroupTitle, savedSenderName, savedPreview));
+    }
+
+    /** Collect replies from a regular history page, allowing exact targets in the same page. */
+    public static void recordRepliesFromHistory(int account, long dialogId, ArrayList<MessageObject> messages) {
+        if (messages == null || messages.isEmpty() || dialogId >= 0) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            recordReply(account, dialogId, messages.get(i), messages);
+        }
     }
 
     private static void persistReply(int account, long ownerId, long dialogId, int messageId,
