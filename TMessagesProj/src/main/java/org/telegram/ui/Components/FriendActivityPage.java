@@ -205,6 +205,9 @@ public class FriendActivityPage {
                                 int oldestId = Integer.MAX_VALUE;
                                 for (TLRPC.Message message : msgs.messages) {
                                     if (message == null) continue;
+                                    // Pagination must advance across every returned result, even
+                                    // if a server-side filter unexpectedly includes a non-target sender.
+                                    oldestId = Math.min(oldestId, message.id);
                                     if (!(message.from_id instanceof TLRPC.TL_peerUser)
                                             || message.from_id.user_id != targetUserId) continue;
 
@@ -214,7 +217,6 @@ public class FriendActivityPage {
                                         allMessages.add(message);
                                         addedNew[0] = true;
                                     }
-                                    oldestId = Math.min(oldestId, message.id);
                                 }
                                 if (oldestId != Integer.MAX_VALUE) {
                                     chatOffsets.put(chatId, oldestId);
