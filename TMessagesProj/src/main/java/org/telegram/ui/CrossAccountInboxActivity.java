@@ -902,13 +902,15 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         java.util.HashSet<String> groups = getSelectedInboxGroups();
         // Group ids are only unique within an account. Never fall back to a
         // bare dialog id here, or a selection in one account can match another.
-        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.dialogId))) return false;
+        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.ownerId, reply.dialogId))) return false;
         int type = getReplyTypeFilter();
         return type == 0 || reply.messageType == type;
     }
 
-    private String getInboxGroupKey(int account, long dialogId) {
-        return account + ":" + dialogId;
+    private String getInboxGroupKey(int account, long ownerId, long dialogId) {
+        // Account slots can be reused after logout. Include the signed-in owner
+        // so a saved filter can never leak across different accounts in one slot.
+        return account + ":" + ownerId + ":" + dialogId;
     }
 
     private void showInboxGroupPicker() {
@@ -917,7 +919,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         java.util.HashMap<String, String> labelsById = new java.util.HashMap<>();
         for (CrossAccountInboxStore.Entry entry : CrossAccountInboxStore.getAllEntries()) {
             if (accounts.contains(entry.account)) {
-                String key = getInboxGroupKey(entry.account, entry.dialogId);
+                String key = getInboxGroupKey(entry.account, entry.ownerId, entry.dialogId);
                 String title = TextUtils.isEmpty(entry.groupTitle) ? "群组消息" : entry.groupTitle;
                 labelsById.put(key, "账号 " + (entry.account + 1) + " · " + title);
             }
