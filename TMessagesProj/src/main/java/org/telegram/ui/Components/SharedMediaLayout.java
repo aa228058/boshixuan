@@ -12081,6 +12081,7 @@ private void showRealActivityPage(boolean display) {
 
                 RecyclerListView listView = new RecyclerListView(getContext());
                 listView.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false));
+                listView.setScrollingTouchSlop(RecyclerView.TOUCH_SLOP_PAGING);
                 listView.setClipToPadding(false);
                 adapterHolder[0] = new FriendActivityAdapter(currentAccount,
                         messages == null ? new ArrayList<>() : new ArrayList<>(messages), profileActivity);
