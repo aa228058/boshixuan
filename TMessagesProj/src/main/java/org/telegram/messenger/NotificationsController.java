@@ -4126,6 +4126,15 @@ public class NotificationsController extends BaseController {
 
     private void showOrUpdateNotification(boolean notifyAboutLast) {
         removeHiddenReactionNotifications();
+        if (BuildVars.LOGS_ENABLED) {
+            boolean notificationsEnabled = NotificationManagerCompat.from(ApplicationLoader.applicationContext).areNotificationsEnabled();
+            FileLog.d("NotificationsController: showOrUpdateNotification account=" + currentAccount
+                    + ", systemNotificationsEnabled=" + notificationsEnabled
+                    + ", pushMessages=" + pushMessages.size()
+                    + ", storyPushMessages=" + storyPushMessages.size()
+                    + ", allAccounts=" + SharedConfig.showNotificationsForAllAccounts
+                    + ", selectedAccount=" + UserConfig.selectedAccount);
+        }
         if (!getUserConfig().isClientActivated() || pushMessages.isEmpty() && storyPushMessages.isEmpty() || !SharedConfig.showNotificationsForAllAccounts && currentAccount != UserConfig.selectedAccount) {
             dismissNotification();
             return;
