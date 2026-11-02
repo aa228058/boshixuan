@@ -26,7 +26,9 @@ public class NotificationsService extends Service {
     private static PowerManager.WakeLock cpuWakeLock;
     private static WifiManager.WifiLock wifiLock;
     private static long lastRestartTime = 0;
+    private static long lastConnectionCheckTime = 0;
     private static final long RESTART_COOLDOWN_MS = 60_000; // 广播防抖：60秒内不重复拉起
+    private static final long CONNECTION_CHECK_COOLDOWN_MS = 30_000; // 防止服务短时间重启时反复遍历账号
 
     @Override
     public void onCreate() {
@@ -82,6 +84,11 @@ public class NotificationsService extends Service {
     }
 
     private void checkConnectionAndWakeup() {
+        long now = System.currentTimeMillis();
+        if (now - lastConnectionCheckTime < CONNECTION_CHECK_COOLDOWN_MS) {
+            return;
+        }
+        lastConnectionCheckTime = now;
         try {
             for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
                 if (UserConfig.getInstance(i).isClientActivated()) {
