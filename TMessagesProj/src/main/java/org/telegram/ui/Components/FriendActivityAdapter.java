@@ -74,7 +74,7 @@ public class FriendActivityAdapter extends BaseAdapter {
         if (chat != null) drawable.setInfo(chat);
         avatar.setImageDrawable(drawable);
         if (chat != null && chat.photo != null) {
-            avatar.setImage(ImageLocation.getForChat(chat, ImageLocation.TYPE_CHAT), "50_50", drawable, chat);
+            avatar.setImage(ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL), "50_50", drawable, chat);
         }
         
         LinearLayout.LayoutParams avatarLp = new LinearLayout.LayoutParams(AndroidUtilities.dp(48), AndroidUtilities.dp(48));
