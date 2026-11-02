@@ -909,6 +909,16 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 .setPositiveButton("发送", (dialog, which) -> {
                     String text = input.getText() == null ? "" : input.getText().toString().trim();
                     if (TextUtils.isEmpty(text)) return;
+                    // The account may have logged out or been replaced while the
+                    // confirmation dialog was open. Revalidate ownership immediately
+                    // before resolving the message and submitting the send request.
+                    UserConfig currentConfig = UserConfig.getInstance(row.account);
+                    if (!currentConfig.isClientActivated() || currentConfig.getClientUserId() != row.ownerId) {
+                        new AlertDialog.Builder(getParentActivity())
+                                .setMessage("该消息所属账号已退出或账号已切换，已取消发送。")
+                                .setPositiveButton(android.R.string.ok, null).show();
+                        return;
+                    }
                     // Resolve and send through the source account only, replying to
                     // the exact incoming message id captured by Telegram.
                     MessageObject currentReply = findReplyMessage(row);
