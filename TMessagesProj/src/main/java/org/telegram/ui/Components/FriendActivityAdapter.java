@@ -35,6 +35,12 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     private final ArrayList<GroupItem> groups = new ArrayList<>();
     private final HashSet<Long> collapsedGroups = new HashSet<>();
     private final BaseFragment fragment;
+    private final java.text.SimpleDateFormat activityTimeFormat =
+            new java.text.SimpleDateFormat("HH:mm", Locale.getDefault());
+    private final java.text.SimpleDateFormat activityDateFormat =
+            new java.text.SimpleDateFormat("M月d日", Locale.getDefault());
+    private long activityDayStartMillis;
+    private long activityDayEndMillis;
 
     private static class GroupItem {
         final long dialogId;
@@ -317,18 +323,27 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         return row;
     }
 
+    private void updateActivityDayBounds() {
+        Calendar today = Calendar.getInstance();
+        today.set(Calendar.HOUR_OF_DAY, 0);
+        today.set(Calendar.MINUTE, 0);
+        today.set(Calendar.SECOND, 0);
+        today.set(Calendar.MILLISECOND, 0);
+        activityDayStartMillis = today.getTimeInMillis();
+        today.add(Calendar.DAY_OF_YEAR, 1);
+        activityDayEndMillis = today.getTimeInMillis();
+    }
+
     private String formatMessageTime(android.content.Context context, int date) {
         long time = (long) date * 1000L;
-        Calendar messageCalendar = Calendar.getInstance();
-        messageCalendar.setTimeInMillis(time);
-        Calendar today = Calendar.getInstance();
-        boolean sameDay = messageCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)
-                && messageCalendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR);
-        java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm", Locale.getDefault());
-        if (sameDay) return timeFormat.format(time);
-
-        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("M月d日", Locale.getDefault());
-        return dateFormat.format(time) + "  " + timeFormat.format(time);
+        long now = System.currentTimeMillis();
+        if (activityDayStartMillis == 0 || now < activityDayStartMillis || now >= activityDayEndMillis) {
+            updateActivityDayBounds();
+        }
+        if (time >= activityDayStartMillis && time < activityDayEndMillis) {
+            return activityTimeFormat.format(time);
+        }
+        return activityDateFormat.format(time) + "  " + activityTimeFormat.format(time);
     }
 
     private String getActivityMediaText(TLRPC.Message message) {
