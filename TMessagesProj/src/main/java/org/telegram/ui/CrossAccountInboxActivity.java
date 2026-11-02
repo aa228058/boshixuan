@@ -887,9 +887,14 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean matchesReplyFilters(CrossAccountInboxStore.Entry reply) {
         if (!getSelectedInboxAccounts().contains(reply.account)) return false;
         java.util.HashSet<String> groups = getSelectedInboxGroups();
-        if (!groups.isEmpty() && !groups.contains(Long.toString(reply.dialogId))) return false;
+        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.dialogId))
+                && !groups.contains(Long.toString(reply.dialogId))) return false;
         int type = getReplyTypeFilter();
         return type == 0 || reply.messageType == type;
+    }
+
+    private String getInboxGroupKey(int account, long dialogId) {
+        return account + ":" + dialogId;
     }
 
     private void showInboxGroupPicker() {
@@ -898,8 +903,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         java.util.HashMap<String, String> labelsById = new java.util.HashMap<>();
         for (CrossAccountInboxStore.Entry entry : CrossAccountInboxStore.getAllEntries()) {
             if (accounts.contains(entry.account)) {
-                labelsById.put(Long.toString(entry.dialogId),
-                        TextUtils.isEmpty(entry.groupTitle) ? "群组消息" : entry.groupTitle);
+                String key = getInboxGroupKey(entry.account, entry.dialogId);
+                String title = TextUtils.isEmpty(entry.groupTitle) ? "群组消息" : entry.groupTitle;
+                labelsById.put(key, "账号 " + (entry.account + 1) + " · " + title);
             }
         }
         if (labelsById.isEmpty()) {
@@ -914,7 +920,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         java.util.HashSet<String> selected = getSelectedInboxGroups();
         for (int i = 0; i < ids.size(); i++) {
             labels[i] = labelsById.get(ids.get(i));
-            checked[i] = selected.isEmpty() || selected.contains(ids.get(i));
+            checked[i] = selected.isEmpty() || selected.contains(ids.get(i))
+                    || selected.contains(ids.get(i).substring(ids.get(i).indexOf(':') + 1));
         }
         new AlertDialog.Builder(getParentActivity())
                 .setTitle("选择群组（默认全部）")
