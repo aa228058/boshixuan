@@ -16,6 +16,8 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.Editable;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -37,6 +39,7 @@ import org.telegram.messenger.ImageLoader;
 import org.telegram.messenger.KeywordMessageFilterManager;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MangoUpdateManager;
+import org.telegram.messenger.MangoGroupBroadcastTaskStore;
 import org.telegram.messenger.MangoSettings;
 import org.telegram.messenger.MangoLegacySettings;
 import org.telegram.messenger.MangoFeatureRegistry;
@@ -134,7 +137,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
     private static final int ITEM_PERFORMANCE_MONITOR = 89, ITEM_DOWNLOAD_SPEED_HUD = 90;
     private static final int ITEM_RANDOM_REPLY_GROUPS = 91;
     private static final int ITEM_USER_BROADCAST = 92;
-    private static final int ITEM_SYNC_SWITCHES = 93, ITEM_SECURITY_CHECK = 94;
+    private static final int ITEM_SYNC_SWITCHES = 93, ITEM_SECURITY_CHECK = 94, ITEM_GROUP_BROADCAST_TASKS = 95;
     private static final int ITEM_COMMON_CLEAR_CACHE = 20001, ITEM_COMMON_PROXY = 20002,
             ITEM_COMMON_ACCOUNT = 20003, ITEM_COMMON_PRIVACY = 20004;
 
@@ -316,7 +319,7 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 return MangoFeatureRegistry.PRIVACY;
             case 12: case 14: case 15: case 17: case 18: case 38: case 43: case 56: case ITEM_DOWNLOAD_RETENTION: case ITEM_DOWNLOAD_SPEED_HUD:
                 return MangoFeatureRegistry.MEDIA;
-            case 10: case 27: case 28: case 29: case 30: case 42: case 45: case 46: case 52: case ITEM_RANDOM_REPLY_GROUPS: case ITEM_USER_BROADCAST:
+            case 10: case 27: case 28: case 29: case 30: case 42: case 45: case 46: case 52: case ITEM_RANDOM_REPLY_GROUPS: case ITEM_USER_BROADCAST: case ITEM_GROUP_BROADCAST_TASKS:
                 return MangoFeatureRegistry.AUTOMATION;
             case 7: case 9: case 13: case 20: case 21: case 23: case 24: case 25: case 26: case 31: case 32: case 35: case 36: case 39: case 44: case 47: case ITEM_BUILTIN_THEMES: case ITEM_UNIFIED_TAB: case ITEM_UNIFIED_INBOX: case ITEM_RESTRICTION_TITLE:
                 return MangoFeatureRegistry.APPEARANCE;
@@ -539,6 +542,8 @@ public class ExtensionFeaturesActivity extends BaseFragment {
                 getString(R.string.BroadcastToGroupsTitle),
                 getString(R.string.BroadcastToGroupsSummary)
         ));
+        items.add(UItem.asButton(ITEM_GROUP_BROADCAST_TASKS, R.drawable.msg_recent,
+                "群发任务进度", "查看正在发送的任务和历史发送记录"));
         items.add(UItem.asSwitch(ITEM_ID_LOCAL_VIRTUAL_GIFT_BUY, getString(R.string.LocalVirtualGiftBuyTitle)).setChecked(SharedConfig.isLocalVirtualGiftBuyEnabled()));
         items.add(UItem.asButton(
                 ITEM_ID_DOWNLOAD_SPEED,
@@ -879,6 +884,9 @@ public class ExtensionFeaturesActivity extends BaseFragment {
             case ITEM_ID_BROADCAST_TO_GROUPS:
                 showBroadcastToGroupsDialog();
                 return;
+            case ITEM_GROUP_BROADCAST_TASKS:
+                showBroadcastTasksDialog();
+                return;
             case ITEM_ID_LOCAL_VIRTUAL_GIFT_BUY:
                 enabled = !SharedConfig.isLocalVirtualGiftBuyEnabled();
                 SharedConfig.setLocalVirtualGiftBuyEnabled(enabled);
@@ -1217,29 +1225,47 @@ public class ExtensionFeaturesActivity extends BaseFragment {
 
     private void showBroadcastToGroupsDialog() {
         Context context = getParentActivity();
-        if (context == null) {
-            return;
-        }
+        if (context == null) return;
 
-        FrameLayout container = new FrameLayout(context);
-        container.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), 0);
+        LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), 0);
+
+        TextView hint = new TextView(context);
+        hint.setText(getString(R.string.BroadcastToGroupsInputInfo));
+        hint.setTextSize(13);
+        hint.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+        container.addView(hint, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 12));
 
         EditTextBoldCursor editText = new EditTextBoldCursor(context);
-        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         editText.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
         editText.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint));
-        editText.setBackgroundDrawable(Theme.createEditTextDrawable(context, true));
+        editText.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackground)));
         editText.setHintText(getString(R.string.BroadcastToGroupsHint));
-        editText.setMinLines(3);
-        editText.setMaxLines(6);
+        editText.setMinLines(4);
+        editText.setMaxLines(8);
         editText.setImeOptions(EditorInfo.IME_ACTION_DONE);
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        editText.setPadding(AndroidUtilities.dp(4), AndroidUtilities.dp(12), AndroidUtilities.dp(4), AndroidUtilities.dp(12));
-        container.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        editText.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
+        container.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        TextView charCount = new TextView(context);
+        charCount.setText("0 / " + Math.min(4096, getMessagesController().maxMessageLength));
+        charCount.setTextSize(12);
+        charCount.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+        charCount.setGravity(Gravity.RIGHT);
+        container.addView(charCount, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 6, 0, 0));
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                charCount.setText(s.length() + " / " + Math.min(4096, getMessagesController().maxMessageLength));
+            }
+            @Override public void afterTextChanged(Editable s) { }
+        });
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourceProvider);
         builder.setTitle(getString(R.string.BroadcastToGroupsTitle));
-        builder.setMessage(getString(R.string.BroadcastToGroupsInputInfo));
         builder.setView(container);
         builder.setPositiveButton(getString(R.string.OK), (dialog, which) -> {
             String text = SendMessagesHelper.getTrimmedString(editText.getText().toString());
@@ -1362,8 +1388,14 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
         return;
     }
     SendMessagesHelper sendMessagesHelper = SendMessagesHelper.getInstance(currentAccount);
-    
-    // 投递到后台队列，防止 UI 线程阻塞
+    ArrayList<String> targetNames = new ArrayList<>();
+    for (long dialogId : targetGroups) {
+        TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
+        targetNames.add(chat == null ? "群组" : chat.title);
+    }
+    final long taskId = MangoGroupBroadcastTaskStore.create(currentAccount, text, targetNames);
+
+    // Keep the existing randomized interval and SendMessagesHelper payload unchanged.
     org.telegram.messenger.Utilities.globalQueue.postRunnable(() -> {
         long currentDelay = 0;
         int diff = (maxSec - minSec) * 1000;
@@ -1371,19 +1403,112 @@ private void sendTextToGroups(String text, ArrayList<Long> targetGroups, int min
 
         for (int i = 0, size = targetGroups.size(); i < size; i++) {
             final long dialogId = targetGroups.get(i);
-            
             long randomDelay = org.telegram.messenger.Utilities.random.nextInt(diff) + (minSec * 1000L);
             currentDelay += randomDelay;
             final long finalDelay = currentDelay;
 
             org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
-                sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(
-                    text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false
-                ));
+                try {
+                    sendMessagesHelper.sendMessage(SendMessagesHelper.SendMessageParams.of(
+                            text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false
+                    ));
+                    MangoGroupBroadcastTaskStore.markResult(currentAccount, taskId, true);
+                } catch (Throwable error) {
+                    FileLog.e(error);
+                    MangoGroupBroadcastTaskStore.markResult(currentAccount, taskId, false);
+                }
             }, finalDelay);
         }
     });
+    Toast.makeText(getParentActivity(), "已创建群发任务，共 " + targetGroups.size() + " 个群组", Toast.LENGTH_LONG).show();
+    showBroadcastTasksDialog();
 }
+
+    private void showBroadcastTasksDialog() {
+        Context context = getParentActivity();
+        if (context == null) return;
+
+        LinearLayout list = new LinearLayout(context);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(8), AndroidUtilities.dp(16), AndroidUtilities.dp(8));
+        ScrollView scroll = new ScrollView(context);
+        scroll.setFillViewport(false);
+        scroll.addView(list);
+
+        final AlertDialog dialog = new AlertDialog.Builder(context, resourceProvider)
+                .setTitle("群发任务进度")
+                .setView(scroll)
+                .setPositiveButton(getString(R.string.OK), null)
+                .create();
+
+        Runnable refresh = new Runnable() {
+            @Override public void run() {
+                if (!dialog.isShowing()) return;
+                list.removeAllViews();
+                ArrayList<MangoGroupBroadcastTaskStore.Task> tasks = MangoGroupBroadcastTaskStore.getTasks(currentAccount);
+                if (tasks.isEmpty()) {
+                    TextView empty = new TextView(context);
+                    empty.setText("还没有群发任务。创建群发后，这里会显示实时进度和历史记录。");
+                    empty.setTextSize(14);
+                    empty.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                    list.addView(empty, LayoutHelper.createLinear(-1, -2, 0, 8, 0, 8));
+                }
+                for (MangoGroupBroadcastTaskStore.Task task : tasks) {
+                    LinearLayout card = new LinearLayout(context);
+                    card.setOrientation(LinearLayout.VERTICAL);
+                    card.setPadding(AndroidUtilities.dp(14), AndroidUtilities.dp(12), AndroidUtilities.dp(14), AndroidUtilities.dp(12));
+                    card.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), Theme.getColor(Theme.key_dialogBackground)));
+                    TextView title = new TextView(context);
+                    title.setTextSize(14);
+                    title.setTypeface(AndroidUtilities.bold());
+                    title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
+                    String state = task.state == MangoGroupBroadcastTaskStore.SENDING ? "发送中"
+                            : task.state == MangoGroupBroadcastTaskStore.COMPLETED ? "已完成" : "应用中断";
+                    title.setText(state + " · " + LocaleController.formatDateChat((int) (task.createdAt / 1000)));
+                    card.addView(title, LayoutHelper.createLinear(-1, -2));
+
+                    TextView count = new TextView(context);
+                    count.setTextSize(13);
+                    count.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                    count.setText("已处理 " + task.processed + "/" + task.total + " · 已加入发送队列 "
+                            + task.queued + " · 异常 " + task.failed);
+                    card.addView(count, LayoutHelper.createLinear(-1, -2, 0, 6, 0, 6));
+
+                    ProgressBar progress = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
+                    progress.setMax(1000);
+                    progress.setProgress(task.total <= 0 ? 0 : (int) (task.processed * 1000L / task.total));
+                    card.addView(progress, LayoutHelper.createLinear(-1, 6));
+
+                    TextView preview = new TextView(context);
+                    preview.setTextSize(13);
+                    preview.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                    preview.setMaxLines(2);
+                    preview.setText(task.message);
+                    card.addView(preview, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+
+                    if (!task.targetNames.isEmpty()) {
+                        TextView targets = new TextView(context);
+                        targets.setTextSize(12);
+                        targets.setTextColor(Theme.getColor(Theme.key_dialogTextHint));
+                        int show = Math.min(3, task.targetNames.size());
+                        StringBuilder names = new StringBuilder("目标：");
+                        for (int i = 0; i < show; i++) {
+                            if (i > 0) names.append("、");
+                            names.append(task.targetNames.get(i));
+                        }
+                        if (task.targetNames.size() > show) names.append(" 等 ").append(task.targetNames.size()).append(" 个群组");
+                        targets.setText(names.toString());
+                        card.addView(targets, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 0));
+                    }
+                    list.addView(card, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 10));
+                }
+                if (dialog.isShowing()) AndroidUtilities.runOnUIThread(this, 1000);
+            }
+        };
+        dialog.setOnDismissListener(d -> AndroidUtilities.cancelRunOnUIThread(refresh));
+        dialog.setOnShowListener(d -> refresh.run());
+        dialog.show();
+    }
 
     private ArrayList<Long> getBroadcastTargetGroups() {
         ArrayList<Long> result = new ArrayList<>();
