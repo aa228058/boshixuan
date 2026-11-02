@@ -156,6 +156,6 @@ public final class MangoGroupBroadcastTaskStore {
                 FileLog.e(e);
             }
         }
-        preferences(account).edit().putString("tasks", array.toString()).commit();
+        preferences(account).edit().putString("tasks", array.toString()).apply();
     }
 }
