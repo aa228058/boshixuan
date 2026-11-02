@@ -32,11 +32,12 @@ public final class MangoGroupBroadcastTaskStore {
         public final int state;
         public final ArrayList<String> targetNames;
         public final ArrayList<Long> targetIds;
+        public final ArrayList<String> logs;
         public final int minSeconds;
         public final int maxSeconds;
 
         Task(long id, long createdAt, String message, int total, int processed,
-                int queued, int failed, int state, ArrayList<String> targetNames, ArrayList<Long> targetIds, int minSeconds, int maxSeconds) {
+                int queued, int failed, int state, ArrayList<String> targetNames, ArrayList<Long> targetIds, ArrayList<String> logs, int minSeconds, int maxSeconds) {
             this.id = id;
             this.createdAt = createdAt;
             this.message = message;
@@ -47,6 +48,7 @@ public final class MangoGroupBroadcastTaskStore {
             this.state = state;
             this.targetNames = targetNames;
             this.targetIds = targetIds;
+            this.logs = logs;
             this.minSeconds = minSeconds;
             this.maxSeconds = maxSeconds;
         }
@@ -71,7 +73,7 @@ public final class MangoGroupBroadcastTaskStore {
             while (containsTask(tasks, id)) id++;
             ArrayList<String> names = targetNames == null ? new ArrayList<>() : new ArrayList<>(targetNames);
             ArrayList<Long> ids = targetIds == null ? new ArrayList<>() : new ArrayList<>(targetIds);
-            tasks.add(0, new Task(id, System.currentTimeMillis(), message, names.size(), 0, 0, 0, SENDING, names, ids, minSeconds, maxSeconds));
+            tasks.add(0, new Task(id, System.currentTimeMillis(), message, ids.size(), 0, 0, 0, SENDING, names, ids, new ArrayList<>(), minSeconds, maxSeconds));
             while (tasks.size() > MAX_HISTORY) tasks.remove(tasks.size() - 1);
             activeTasks.add(activeKey(account, id));
             write(account, tasks);
@@ -85,7 +87,7 @@ public final class MangoGroupBroadcastTaskStore {
     }
 
     /** Count only after the existing SendMessagesHelper call has returned without throwing. */
-    public static void markResult(int account, long taskId, boolean queued) {
+    public static void markResult(int account, long taskId, long dialogId, boolean queued, String error) {
         synchronized (LOCK) {
             ArrayList<Task> tasks = read(account);
             for (int i = 0; i < tasks.size(); i++) {
@@ -94,9 +96,18 @@ public final class MangoGroupBroadcastTaskStore {
                 int processed = Math.min(old.total, old.processed + 1);
                 int queuedCount = old.queued + (queued ? 1 : 0);
                 int failedCount = old.failed + (queued ? 0 : 1);
-                int state = processed >= old.total ? COMPLETED : SENDING;
+                int state = processed >= old.total ? COMPLETED : old.state;
+                ArrayList<String> logs = new ArrayList<>(old.logs);
+                String targetName = "群组 " + dialogId;
+                int targetIndex = old.targetIds.indexOf(dialogId);
+                if (targetIndex >= 0 && targetIndex < old.targetNames.size()) targetName = old.targetNames.get(targetIndex);
+                String entry = new java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        .format(new java.util.Date()) + " · " + targetName + " · "
+                        + (queued ? "已提交发送队列" : "调用异常：" + (error == null ? "未知错误" : error));
+                logs.add(0, entry);
+                while (logs.size() > 100) logs.remove(logs.size() - 1);
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
-                        processed, queuedCount, failedCount, state, old.targetNames, old.targetIds, old.minSeconds, old.maxSeconds));
+                        processed, queuedCount, failedCount, state, old.targetNames, old.targetIds, logs, old.minSeconds, old.maxSeconds));
                 if (state == COMPLETED) activeTasks.remove(activeKey(account, taskId));
                 write(account, tasks);
                 return;
@@ -111,7 +122,7 @@ public final class MangoGroupBroadcastTaskStore {
                 Task old = tasks.get(i);
                 if (old.id != taskId) continue;
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total, old.processed,
-                        old.queued, old.failed, state, old.targetNames, old.targetIds, old.minSeconds, old.maxSeconds));
+                        old.queued, old.failed, state, old.targetNames, old.targetIds, old.logs, old.minSeconds, old.maxSeconds));
                 if (state == SENDING) activeTasks.add(activeKey(account, taskId));
                 else activeTasks.remove(activeKey(account, taskId));
                 write(account, tasks);
@@ -135,13 +146,19 @@ public final class MangoGroupBroadcastTaskStore {
                 Task task = tasks.get(i);
                 if (task.state == SENDING && !activeTasks.contains(activeKey(account, task.id))) {
                     tasks.set(i, new Task(task.id, task.createdAt, task.message, task.total,
-                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames, task.targetIds, task.minSeconds, task.maxSeconds));
+                            task.processed, task.queued, task.failed, INTERRUPTED, task.targetNames, task.targetIds, task.logs, task.minSeconds, task.maxSeconds));
                     changed = true;
                 }
             }
             if (changed) write(account, tasks);
             return tasks;
         }
+    }
+
+    private static ArrayList<String> readLogs(JSONArray array) {
+        ArrayList<String> logs = new ArrayList<>();
+        if (array != null) for (int i = 0; i < array.length() && i < 100; i++) logs.add(array.optString(i, ""));
+        return logs;
     }
 
     private static ArrayList<Task> read(int account) {
@@ -162,7 +179,7 @@ public final class MangoGroupBroadcastTaskStore {
                 tasks.add(new Task(item.optLong("id"), item.optLong("createdAt"),
                         item.optString("message", ""), item.optInt("total"),
                         item.optInt("processed"), item.optInt("queued"), item.optInt("failed"),
-                        item.optInt("state"), names, ids, item.optInt("minSeconds", 5), item.optInt("maxSeconds", 15)));
+                        item.optInt("state"), names, ids, readLogs(item.optJSONArray("logs")), item.optInt("minSeconds", 5), item.optInt("maxSeconds", 15)));
             }
         } catch (Exception e) {
             FileLog.e(e);
@@ -189,6 +206,9 @@ public final class MangoGroupBroadcastTaskStore {
                 JSONArray ids = new JSONArray();
                 for (Long id : task.targetIds) ids.put(id);
                 item.put("targetIds", ids);
+                JSONArray logs = new JSONArray();
+                for (String log : task.logs) logs.put(log);
+                item.put("logs", logs);
                 item.put("minSeconds", task.minSeconds);
                 item.put("maxSeconds", task.maxSeconds);
                 array.put(item);
