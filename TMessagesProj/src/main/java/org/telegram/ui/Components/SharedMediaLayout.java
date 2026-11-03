@@ -4930,7 +4930,7 @@ if (id == TAB_MANGO_ACTIVITY) {
 
     public void setNewMediaCounts(int[] mediaCounts) {
         boolean hadMedia = false;
-        for (int a = 0; a <= 6; a++) {
+        for (int a = 0; a < hasMedia.length; a++) {
             if (hasMedia[a] >= 0) {
                 hadMedia = true;
                 break;
