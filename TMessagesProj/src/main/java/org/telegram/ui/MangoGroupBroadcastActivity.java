@@ -90,9 +90,17 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         intervalField.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(9), getThemedColor(Theme.key_windowBackgroundGray)));
         compose.addView(intervalField, LayoutHelper.createLinear(-1, 44, 0, 7, 0, 0));
 
-        TextView choose = button(context, "选择群组", false);
-        compose.addView(choose, LayoutHelper.createLinear(-1, 48, 0, 14, 0, 0));
+        LinearLayout selectionActions = new LinearLayout(context);
+        selectionActions.setOrientation(LinearLayout.HORIZONTAL);
+        compose.addView(selectionActions, LayoutHelper.createLinear(-1, 46, 0, 14, 0, 0));
+        TextView choose = button(context, "搜索并选择群组", false);
+        selectionActions.addView(choose, new LinearLayout.LayoutParams(0, AndroidUtilities.dp(44), 1));
         choose.setOnClickListener(v -> openGroupPicker());
+        TextView selectAll = button(context, "全选已加载", true);
+        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(0, AndroidUtilities.dp(44), 1);
+        allParams.leftMargin = AndroidUtilities.dp(8);
+        selectionActions.addView(selectAll, allParams);
+        selectAll.setOnClickListener(v -> selectAllLoadedGroups());
         selectedInfo = label(context, "尚未选择群组", 13, Theme.key_windowBackgroundWhiteGrayText, false);
         compose.addView(selectedInfo, LayoutHelper.createLinear(-1, -2, 0, 9, 0, 0));
 
@@ -137,6 +145,30 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 getThemedColor(secondary ? Theme.key_windowBackgroundGray : Theme.key_featuredStickers_addButton),
                 getThemedColor(Theme.key_listSelector)));
         return view;
+    }
+
+    /**
+     * Select every group currently loaded in this account's group dialog index.
+     * The standard picker remains available for searching and fine-grained selection.
+     */
+    private void selectAllLoadedGroups() {
+        Bundle args = new Bundle();
+        args.putBoolean("onlySelect", true);
+        args.putBoolean("canSelectTopics", false);
+        args.putBoolean("allowSwitchAccount", false);
+        args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY);
+        DialogsActivity source = new DialogsActivity(args);
+        ArrayList<TLRPC.Dialog> dialogs = source.getDialogsArray(currentAccount,
+                DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY, 0, false);
+        ArrayList<MessagesStorage.TopicKey> keys = new ArrayList<>();
+        for (TLRPC.Dialog dialog : dialogs) {
+            if (dialog == null || dialog.id >= 0) continue;
+            keys.add(MessagesStorage.TopicKey.of(dialog.id, 0));
+        }
+        didSelectDialogs(source, keys, null, false, true, 0, 0, null);
+        if (selectedInfo != null) {
+            selectedInfo.setText("已全选当前账号已加载的 " + selectedGroups.size() + " 个群组");
+        }
     }
 
     private void openGroupPicker() {
