@@ -12050,7 +12050,10 @@ private void showRealActivityPage(boolean display) {
 
                 RecyclerListView listView = new RecyclerListView(getContext());
                 listView.setLayoutManager(new LinearLayoutManager(getContext(), RecyclerView.VERTICAL, false));
-                listView.setScrollingTouchSlop(RecyclerView.TOUCH_SLOP_PAGING);
+                // Use the normal RecyclerView gesture threshold. The parent
+                // SharedMediaLayout handles horizontal tab paging; this list handles
+                // vertical scrolling through RecyclerView's built-in touch arbitration.
+                listView.setScrollingTouchSlop(RecyclerView.TOUCH_SLOP_DEFAULT);
                 listView.setClipToPadding(false);
                 adapterHolder[0] = new FriendActivityAdapter(currentAccount,
                         messages == null ? new ArrayList<>() : new ArrayList<>(messages), profileActivity);
@@ -12079,40 +12082,9 @@ private void showRealActivityPage(boolean display) {
                         }
                     }
                 });
-                final float[] activityTouchStart = new float[2];
-                final boolean[] activityTouchDirectionDecided = new boolean[1];
-                listView.setOnTouchListener((view, event) -> {
-                    android.view.ViewParent parent = view.getParent();
-                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
-                        activityTouchStart[0] = event.getX();
-                        activityTouchStart[1] = event.getY();
-                        activityTouchDirectionDecided[0] = false;
-                        if (parent != null) {
-                            // Keep the parent from stealing the initial touch while the
-                            // list determines whether this is a vertical scroll or tab swipe.
-                            parent.requestDisallowInterceptTouchEvent(true);
-                        }
-                    } else if (event.getAction() == android.view.MotionEvent.ACTION_MOVE
-                            && !activityTouchDirectionDecided[0]) {
-                        float dx = Math.abs(event.getX() - activityTouchStart[0]);
-                        float dy = Math.abs(event.getY() - activityTouchStart[1]);
-                        float touchSlop = android.view.ViewConfiguration.get(view.getContext()).getScaledTouchSlop();
-                        if (dx > touchSlop || dy > touchSlop) {
-                            activityTouchDirectionDecided[0] = true;
-                            if (parent != null) {
-                                // Vertical movement belongs to the activity list; horizontal
-                                // movement must remain available to switch profile tabs.
-                                parent.requestDisallowInterceptTouchEvent(dy >= dx);
-                            }
-                        }
-                    } else if (event.getAction() == android.view.MotionEvent.ACTION_UP
-                            || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
-                        if (parent != null) {
-                            parent.requestDisallowInterceptTouchEvent(false);
-                        }
-                    }
-                    return false;
-                });
+                // Do not add a second custom touch arbiter here. RecyclerView's
+                // native vertical gesture handling cooperates with SharedMediaLayout's
+                // horizontal tab-swipe interception and avoids competing listeners.
                 listHolder[0] = listView;
                 mActivityListView = listView;
                 mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
