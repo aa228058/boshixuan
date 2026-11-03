@@ -968,15 +968,17 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
                     // Preserve selections belonging to accounts outside the current
                     // account scope; the picker only edits the groups it displays.
-                    java.util.HashSet<String> values = getSelectedInboxGroups();
-                    values.removeAll(ids);
-                    for (int i = 0; i < ids.size(); i++) if (checked[i]) values.add(ids.get(i));
-                    if (values.isEmpty()) {
+                    int checkedCount = 0;
+                    for (boolean value : checked) if (value) checkedCount++;
+                    if (checkedCount == 0) {
                         new AlertDialog.Builder(getParentActivity()).setMessage("至少选择一个群组，或勾选全部群组。")
                                 .setPositiveButton(android.R.string.ok, null).show();
                         return;
                     }
-                    if (values.size() == ids.size()) values.clear();
+                    java.util.HashSet<String> values = getSelectedInboxGroups();
+                    values.removeAll(ids);
+                    for (int i = 0; i < ids.size(); i++) if (checked[i]) values.add(ids.get(i));
+                    if (checkedCount == ids.size() && values.size() == ids.size()) values.clear();
                     ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
                             .edit().putStringSet(INBOX_GROUPS_KEY, values).apply();
                     if (active && listView != null) listView.adapter.update(true);
