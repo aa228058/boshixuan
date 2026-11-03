@@ -5619,6 +5619,12 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     public RecyclerListView getCurrentListView() {
+        // The Activity tab is rendered in its own overlay RecyclerView rather
+        // than mediaPages[0].listView. Return the visible list to profile-level
+        // scroll/touch helpers so they operate on the page the user is viewing.
+        if (getSelectedTab() == TAB_MANGO_ACTIVITY && mActivityListView != null) {
+            return mActivityListView;
+        }
         if (mediaPages[0].selectedType == TAB_BOT_PREVIEWS) {
             return botPreviewsContainer.getCurrentListView();
         }
