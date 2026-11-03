@@ -249,24 +249,32 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         titleContainer.addView(subtitle, subtitleParams);
         header.addView(titleContainer, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
-        TextView arrow = new TextView(context);
-        arrow.setText(collapsedGroups.contains(group.dialogId) ? "⌄" : "⌃");
-        arrow.setTextSize(20);
-        arrow.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
-        arrow.setGravity(Gravity.CENTER);
-        header.addView(arrow, LayoutHelper.createLinear(28, 38));
-        header.setOnClickListener(v -> toggleGroup(group));
+        TextView count = new TextView(context);
+        count.setText(group.messages.size() + " 条");
+        count.setTextSize(12);
+        count.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        count.setGravity(Gravity.CENTER);
+        header.addView(count, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, 38));
         return header;
     }
 
-    private void toggleGroup(GroupItem group) {
-        if (collapsedGroups.contains(group.dialogId)) {
-            collapsedGroups.remove(group.dialogId);
-        } else {
-            collapsedGroups.add(group.dialogId);
-        }
-        rebuildRows();
-        notifyDataSetChanged();
+    private View createLoadMoreRow(GroupItem group, android.content.Context context) {
+        TextView more = new TextView(context);
+        int shown = visibleCounts.getOrDefault(group.dialogId, DEFAULT_GROUP_VISIBLE_COUNT);
+        int remaining = Math.max(0, group.messages.size() - shown);
+        more.setText("加载更多 · 还有 " + remaining + " 条");
+        more.setTextSize(13);
+        more.setGravity(Gravity.CENTER);
+        more.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText));
+        more.setPadding(0, AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12));
+        more.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10),
+                Theme.getColor(Theme.key_windowBackgroundWhite)));
+        more.setOnClickListener(v -> {
+            visibleCounts.put(group.dialogId, Math.min(group.messages.size(), shown + GROUP_LOAD_STEP));
+            rebuildRows();
+            notifyDataSetChanged();
+        });
+        return more;
     }
 
     private void rebuildRows() {
