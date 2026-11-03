@@ -1228,11 +1228,10 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             invalidate();
         }
 
-        @Override public boolean onInterceptTouchEvent(MotionEvent event) {
-            // The whole row opens its owning account; embedded avatar story actions must not use the selected account.
-            return true;
-        }
-
+        // Do not intercept child touches here. The RecyclerView item click handler
+        // owns row activation; intercepting at this wrapper prevented taps from
+        // reaching that handler on some Android versions. Avatar stories are
+        // disabled on the nested DialogCell above.
         @Override protected void dispatchDraw(Canvas canvas) {
             super.dispatchDraw(canvas);
             if (divider) {
