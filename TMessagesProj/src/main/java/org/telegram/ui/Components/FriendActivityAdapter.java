@@ -200,11 +200,13 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         groupAvatar.setRoundRadius(AndroidUtilities.dp(21));
         AvatarDrawable groupDrawable = new AvatarDrawable();
         TLRPC.Chat chat = MessagesController.getInstance(currentAccount).getChat(-group.dialogId);
-        if (chat != null) groupDrawable.setInfo(chat);
-        groupAvatar.setImageDrawable(groupDrawable);
-        if (chat != null && chat.photo != null) {
-            ImageLocation location = ImageLocation.getForChat(chat, ImageLocation.TYPE_SMALL);
-            if (location != null) groupAvatar.setImage(location, "50_50", groupDrawable, chat);
+        if (chat != null) {
+            groupDrawable.setInfo(chat);
+            // Use the standard avatar pipeline so chat/channel photo locations,
+            // cached thumbnails and fallback initials are resolved consistently.
+            groupAvatar.setForUserOrChat(chat, groupDrawable);
+        } else {
+            groupAvatar.setImageDrawable(groupDrawable);
         }
         header.addView(groupAvatar, LayoutHelper.createLinear(42, 42));
 
