@@ -183,6 +183,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 return dids != null && !dids.isEmpty();
             }
         };
+        picker.forceShowSearch = true;
         picker.setDelegate(this);
         presentFragment(picker);
     }
@@ -245,7 +246,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
     private String stateName(int state) {
         switch (state) {
             case MangoGroupBroadcastTaskStore.SENDING: return "发送中";
-            case MangoGroupBroadcastTaskStore.COMPLETED: return "已完成";
+            case MangoGroupBroadcastTaskStore.COMPLETED: return "处理完成";
             case MangoGroupBroadcastTaskStore.INTERRUPTED: return "中断";
             case MangoGroupBroadcastTaskStore.PAUSED: return "已暂停";
             case MangoGroupBroadcastTaskStore.CANCELLED: return "已取消";
@@ -269,7 +270,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             item.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), getThemedColor(Theme.key_windowBackgroundGray)));
             taskContainer.addView(item, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 9));
             TextView heading = label(getParentActivity(), stateName(task.state) + " · " + task.processed + "/" + task.total
-                    + " · 成功提交 " + task.queued + " · 异常 " + task.failed, 14, Theme.key_windowBackgroundWhiteBlackText, true);
+                    + " · 已加入发送队列 " + task.queued + " · 调用异常 " + task.failed, 14, Theme.key_windowBackgroundWhiteBlackText, true);
             item.addView(heading, LayoutHelper.createLinear(-1, -2));
             TextView preview = label(getParentActivity(), task.message, 13, Theme.key_windowBackgroundWhiteGrayText, false);
             preview.setMaxLines(3);
