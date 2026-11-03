@@ -451,8 +451,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             if (reply.handled || !matchesReplyFilters(reply)) continue;
             String accountLabel = "账号 " + (reply.account + 1);
             String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
-            String typeLabel = reply.messageType == 2 ? "媒体回复" : "文字回复";
-            String detail = accountLabel + " · " + typeLabel
+            String typeLabel = reply.messageType == 2 ? "媒体消息" : "文字消息";
+            String sourceLabel = reply.dialogId < 0 ? "群组回复" : "私聊消息";
+            String detail = accountLabel + " · " + sourceLabel + " · " + typeLabel
                     + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
                     + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
                     + "\n" + reply.preview;
@@ -886,9 +887,11 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     private boolean matchesReplyFilters(CrossAccountInboxStore.Entry reply) {
         if (!getSelectedInboxAccounts().contains(reply.account)) return false;
         java.util.HashSet<String> groups = getSelectedInboxGroups();
-        // Group ids are only unique within an account. Never fall back to a
-        // bare dialog id here, or a selection in one account can match another.
-        if (!groups.isEmpty() && !groups.contains(getInboxGroupKey(reply.account, reply.ownerId, reply.dialogId))) return false;
+        // Group scope applies only to group replies. Private incoming messages
+        // are controlled by the account and message-type filters, not a group picker.
+        // Group ids are only unique within an account; never match a bare dialog id.
+        if (reply.dialogId < 0 && !groups.isEmpty()
+                && !groups.contains(getInboxGroupKey(reply.account, reply.ownerId, reply.dialogId))) return false;
         int type = getReplyTypeFilter();
         return type == 0 || reply.messageType == type;
     }
