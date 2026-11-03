@@ -238,7 +238,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
                 LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         TextView subtitle = new TextView(context);
-        subtitle.setText(group.messages.size() + " 条动态");
+        subtitle.setText("最近活动");
         subtitle.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
         subtitle.setTextSize(12);
         subtitle.setSingleLine(true);
