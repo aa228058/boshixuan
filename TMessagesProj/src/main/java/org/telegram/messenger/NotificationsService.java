@@ -10,7 +10,6 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.os.SystemClock;
 
 import androidx.core.app.NotificationChannelCompat;
 import androidx.core.app.NotificationCompat;
@@ -27,9 +26,7 @@ public class NotificationsService extends Service {
     private static PowerManager.WakeLock cpuWakeLock;
     private static WifiManager.WifiLock wifiLock;
     private static long lastRestartTime = 0;
-    private static long lastConnectionCheckTime = 0;
     private static final long RESTART_COOLDOWN_MS = 60_000; // 广播防抖：60秒内不重复拉起
-    private static final long CONNECTION_CHECK_COOLDOWN_MS = 30_000; // 防止服务短时间重启时反复遍历账号
 
     @Override
     public void onCreate() {
@@ -53,7 +50,7 @@ public class NotificationsService extends Service {
     }
 
     private void acquireLocks() {
-        if (cpuWakeLock == null || !cpuWakeLock.isHeld()) {
+        if (cpuWakeLock == null) {
             try {
                 PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
                 if (pm != null) {
@@ -64,11 +61,10 @@ public class NotificationsService extends Service {
             } catch (Throwable e) { FileLog.e(e); }
         }
         
-        if (wifiLock == null || !wifiLock.isHeld()) {
+        if (wifiLock == null) {
             try {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 if (wm != null) {
-                    // Keep Wi-Fi awake while the background push service is running.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Mango:PushWifiLock");
                     } else {
@@ -82,39 +78,20 @@ public class NotificationsService extends Service {
     }
 
     private void releaseLocks() {
-        try {
-            if (cpuWakeLock != null && cpuWakeLock.isHeld()) cpuWakeLock.release();
-        } catch (Throwable ignore) {
-        } finally {
-            cpuWakeLock = null;
-        }
-        try {
-            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
-        } catch (Throwable ignore) {
-        } finally {
-            wifiLock = null;
-        }
+        try { if (cpuWakeLock != null && cpuWakeLock.isHeld()) cpuWakeLock.release(); } catch (Throwable ignore) {}
+        try { if (wifiLock != null && wifiLock.isHeld()) wifiLock.release(); } catch (Throwable ignore) {}
     }
 
     private void checkConnectionAndWakeup() {
-        long now = SystemClock.elapsedRealtime();
-        if (lastConnectionCheckTime > 0 && now - lastConnectionCheckTime < CONNECTION_CHECK_COOLDOWN_MS) {
-            return;
-        }
-        lastConnectionCheckTime = now;
-        for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
-            try {
+        try {
+            for (int i = 0; i < UserConfig.MAX_ACCOUNT_COUNT; i++) {
                 if (UserConfig.getInstance(i).isClientActivated()) {
-                    // 每个账号独立检查，单个账号异常不能中断其他账号的连接恢复
+                    // 唤醒底层网络并检查连接
                     ConnectionsManager.getInstance(i).checkConnection();
                     ConnectionsManager.getInstance(i).resumeNetworkMaybe();
                 }
-            } catch (Throwable e) {
-                if (BuildVars.LOGS_ENABLED) {
-                    FileLog.e("NotificationsService: connection check failed for account " + i, e);
-                }
             }
-        }
+        } catch (Throwable ignore) {}
     }
 
     private void createChannel() {
@@ -167,8 +144,8 @@ public class NotificationsService extends Service {
         
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
         if (preferences.getBoolean("pushService", true)) {
-            long now = SystemClock.elapsedRealtime();
-            if (lastRestartTime == 0 || now - lastRestartTime > RESTART_COOLDOWN_MS) {
+            long now = System.currentTimeMillis();
+            if (now - lastRestartTime > RESTART_COOLDOWN_MS) {
                 lastRestartTime = now;
                 // 发送广播拉起自身
                 Intent intent = new Intent("org.telegram.start");
