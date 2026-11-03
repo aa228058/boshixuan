@@ -357,7 +357,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             ProgressBar progress = new ProgressBar(getParentActivity(), null, android.R.attr.progressBarStyleHorizontal);
             progress.setMax(Math.max(1, task.total));
             progress.setProgress(task.processed);
-            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundWhiteBlueText)));
+            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundWhiteGreenText)));
             progress.setProgressBackgroundTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundGray)));
             item.addView(progress, LayoutHelper.createLinear(-1, 6, 0, 8, 0, 0));
             TextView preview = label(getParentActivity(), task.message, 13, Theme.key_windowBackgroundWhiteGrayText, false);
@@ -412,7 +412,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(14),
                 AndroidUtilities.dp(18), AndroidUtilities.dp(8));
-        TextView summary = label(getParentActivity(), stateName(task.state) + " · 已完成 "
+        TextView summary = label(getParentActivity(), stateName(task.state) + " · 成功 "
                 + task.queued + " · 失败 " + task.failed + " · 共 " + task.total + " 个群组",
                 14, Theme.key_windowBackgroundWhiteBlackText, true);
         content.addView(summary, LayoutHelper.createLinear(-1, -2));
