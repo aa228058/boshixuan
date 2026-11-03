@@ -40,7 +40,6 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
     private LinearLayout taskContainer;
     private final ArrayList<Long> selectedGroups = new ArrayList<>();
     private final ArrayList<String> selectedNames = new ArrayList<>();
-    private final HashSet<Long> expandedTaskLogs = new HashSet<>();
     private boolean resumed;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -390,14 +389,6 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                             }).show();
                     roundDialog(dialog);
                 });
-            }
-            boolean expanded = expandedTaskLogs.contains(task.id);
-            int visibleLogCount = expanded ? task.logs.size() : Math.min(8, task.logs.size());
-            ArrayList<String> visibleLogs = new ArrayList<>();
-            for (int i = 0; i < visibleLogCount; i++) visibleLogs.add(task.logs.get(i));
-            String logText = task.logs.isEmpty() ? "暂无发送日志" : android.text.TextUtils.join("\n", visibleLogs);
-            if (task.logs.size() > 8) {
-                logText += expanded ? "\n收起日志" : "\n展开全部日志（共 " + task.logs.size() + " 条）";
             }
             String recentTime = "";
             if (!task.logs.isEmpty()) {
