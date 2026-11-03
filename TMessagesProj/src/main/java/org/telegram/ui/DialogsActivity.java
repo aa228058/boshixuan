@@ -3271,10 +3271,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             animatorSet.start();
             */
         });
-        if (!forceShowSearch && (initialDialogsType == DIALOGS_TYPE_ADD_USERS_TO
-                || isArchive() && getDialogsArray(currentAccount, initialDialogsType, folderId, false).isEmpty())) {
-            searchItem.setVisibility(View.GONE);
-        }
         if (!forceShowSearch) {
             searchItem.setVisibility(View.GONE);
         }
