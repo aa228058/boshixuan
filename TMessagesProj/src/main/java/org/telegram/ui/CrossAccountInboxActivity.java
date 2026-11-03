@@ -141,9 +141,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     return;
                 }
                 CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
-                // Swipe right marks handled; swipe left restores the pending state.
+                // Swipe left marks handled; swipe right restores the pending state.
                 CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
-                        reply.messageId, direction == ItemTouchHelper.RIGHT);
+                        reply.messageId, direction == ItemTouchHelper.LEFT);
             }
         });
         replySwipeHelper.attachToRecyclerView(listView);
@@ -439,46 +439,32 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        // Captured group replies are embedded in the original cross-account summary.
-        items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
-                "回复筛选 · " + getReplyFilterSummary()));
-        items.add(UItem.asSwitch(ITEM_UNREAD, getString(R.string.MangoUnifiedUnread)).setChecked(unreadOnly));
-        items.add(UItem.asSwitch(ITEM_SHOW_HANDLED, "显示已处理回复").setChecked(showHandledReplies));
+        // The unified inbox is a filtered message list, not a duplicate of every
+        // account's ordinary dialog list. Only captured messages passing the
+        // selected scope are shown.
+        items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_filter,
+                "筛选设置 · " + getReplyFilterSummary()));
 
         ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
         int shownReplies = 0;
         for (CrossAccountInboxStore.Entry reply : replies) {
-            if (!matchesReplyFilters(reply) || !showHandledReplies && reply.handled) continue;
+            if (reply.handled || !matchesReplyFilters(reply)) continue;
             String accountLabel = "账号 " + (reply.account + 1);
             String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
             String typeLabel = reply.messageType == 2 ? "媒体回复" : "文字回复";
             String detail = accountLabel + " · " + typeLabel
                     + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
                     + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
-                    + "\n" + reply.preview;
+                    + "\\n" + reply.preview;
             UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
             row.subtext = detail;
             row.object = reply;
             items.add(row);
-            UItem quickReply = UItem.asButton(ITEM_REPLY_SEND, R.drawable.msg_send, "快捷回复");
-            quickReply.object = reply;
-            items.add(quickReply);
-            UItem handled = UItem.asButton(ITEM_REPLY_HANDLED, R.drawable.mini_checklist_done,
-                    reply.handled ? "标记为未处理" : "标记为已处理");
-            handled.object = reply;
-            items.add(handled);
             shownReplies++;
         }
-        if (shownReplies == 0) items.add(UItem.asShadow("当前筛选条件下没有符合条件的群组回复"));
-
-        if (snapshotDirty || cachedUnreadOnly != unreadOnly) {
-            rebuildSnapshot();
-        } else if (!dirtyAccounts.isEmpty()) {
-            rebuildDirtySnapshots();
+        if (shownReplies == 0) {
+            items.add(UItem.asShadow("当前筛选条件下没有符合条件的消息"));
         }
-        if (cachedRows.isEmpty()) items.add(UItem.asShadow(getString(R.string.MangoUnifiedEmpty)));
-        for (Entry row : cachedRows) items.add(createRowItem(row));
-        if (cachedHasMore) items.add(UItem.asButton(ITEM_MORE, R.drawable.msg_retry, getString(R.string.MangoUnifiedLoadMore)));
     }
 
     private UItem createRowItem(Entry row) {
