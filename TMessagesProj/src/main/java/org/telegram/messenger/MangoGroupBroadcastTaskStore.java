@@ -136,6 +136,32 @@ public final class MangoGroupBroadcastTaskStore {
         }
     }
 
+    /** Replace the temporary queued status with the server-acknowledged success status. */
+    public static void markSendSuccess(int account, long dialogId) {
+        synchronized (LOCK) {
+            ArrayList<Task> tasks = read(account);
+            for (int i = 0; i < tasks.size(); i++) {
+                Task old = tasks.get(i);
+                int targetIndex = old.targetIds.indexOf(dialogId);
+                if (targetIndex < 0) continue;
+                String targetName = targetIndex < old.targetNames.size()
+                        ? old.targetNames.get(targetIndex) : "群组 " + dialogId;
+                String marker = " · " + targetName + " · 已提交发送队列";
+                ArrayList<String> logs = new ArrayList<>(old.logs);
+                for (int j = 0; j < logs.size(); j++) {
+                    if (logs.get(j).contains(marker)) {
+                        logs.set(j, logs.get(j).replace(" · 已提交发送队列", " · 发送成功"));
+                        tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
+                                old.processed, old.queued, old.failed, old.state, old.targetNames,
+                                old.targetIds, logs, old.minSeconds, old.maxSeconds));
+                        write(account, tasks);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     /** Convert an asynchronously rejected send from queued to failed for its target group. */
     public static void markSendFailure(int account, long dialogId, String error) {
         synchronized (LOCK) {
