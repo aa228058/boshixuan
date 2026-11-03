@@ -966,7 +966,10 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                    java.util.HashSet<String> values = new java.util.HashSet<>();
+                    // Preserve selections belonging to accounts outside the current
+                    // account scope; the picker only edits the groups it displays.
+                    java.util.HashSet<String> values = getSelectedInboxGroups();
+                    values.removeAll(ids);
                     for (int i = 0; i < ids.size(); i++) if (checked[i]) values.add(ids.get(i));
                     if (values.isEmpty()) {
                         new AlertDialog.Builder(getParentActivity()).setMessage("至少选择一个群组，或勾选全部群组。")
