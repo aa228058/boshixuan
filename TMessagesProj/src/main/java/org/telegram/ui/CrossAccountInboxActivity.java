@@ -848,8 +848,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     String savedScope = count == accounts.length ? "" : value.toString();
                     ApplicationLoader.applicationContext.getSharedPreferences("cross_account_inbox_ui", Context.MODE_PRIVATE)
                             .edit().putString(INBOX_SCOPE_KEY, savedScope)
-                            // Group selections are account-scoped; reset them when the account scope changes.
-                            .remove(INBOX_GROUPS_KEY).apply();
+                            // Keep group selections: each key includes account slot and owner id,
+                            // so selections for other accounts cannot match the newly selected scope.
+                            .apply();
                     if (active && listView != null) listView.adapter.update(true);
                 }).show();
     }
