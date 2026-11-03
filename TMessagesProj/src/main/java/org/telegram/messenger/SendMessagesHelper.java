@@ -2677,9 +2677,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 } else {
                     AndroidUtilities.runOnUIThread(() -> {
                         if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
-                            if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
                             AlertsCreator.processError(currentAccount, error, null, req);
-                        }
                         }
                     });
                 }
