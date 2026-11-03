@@ -59,15 +59,20 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     private static class RowItem {
         final GroupItem group;
         final TLRPC.Message message;
+        final boolean loadMore;
 
         RowItem(GroupItem group, TLRPC.Message message) {
-            this.group = group;
-            this.message = message;
+            this(group, message, false);
         }
 
-        boolean isGroupHeader() {
-            return message == null;
+        RowItem(GroupItem group, TLRPC.Message message, boolean loadMore) {
+            this.group = group;
+            this.message = message;
+            this.loadMore = loadMore;
         }
+
+        boolean isGroupHeader() { return message == null && !loadMore; }
+        boolean isLoadMore() { return loadMore; }
     }
 
     public FriendActivityAdapter(int currentAccount, ArrayList<TLRPC.Message> messages, BaseFragment fragment) {
@@ -132,7 +137,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     public int getMessageIdAtPosition(int position) {
         if (position < 0 || position >= rows.size()) return 0;
         RowItem row = rows.get(position);
-        return row.isGroupHeader() ? 0 : row.message.id;
+        return row.isGroupHeader() || row.isLoadMore() ? 0 : row.message.id;
     }
 
     public int findPosition(long dialogId, int messageId) {
@@ -268,11 +273,10 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         rows.clear();
         for (GroupItem group : groups) {
             rows.add(new RowItem(group, null));
-            if (!collapsedGroups.contains(group.dialogId)) {
-                for (TLRPC.Message message : group.messages) {
-                    rows.add(new RowItem(group, message));
-                }
-            }
+            int visible = Math.min(group.messages.size(),
+                    visibleCounts.getOrDefault(group.dialogId, DEFAULT_GROUP_VISIBLE_COUNT));
+            for (int i = 0; i < visible; i++) rows.add(new RowItem(group, group.messages.get(i)));
+            if (visible < group.messages.size()) rows.add(new RowItem(group, null, true));
         }
     }
 
