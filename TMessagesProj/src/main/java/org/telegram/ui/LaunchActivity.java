@@ -9027,31 +9027,36 @@ public boolean didSelectDialogs(DialogsActivity dialogsFragment, ArrayList<Messa
     }
     
     private void sendBroadcastMessages(String text, ArrayList<Long> targetGroups, int intervalSec) {
-    // 获取底层发送助手
-    org.telegram.messenger.SendMessagesHelper sendMessagesHelper = 
-        org.telegram.messenger.SendMessagesHelper.getInstance(UserConfig.selectedAccount);
-    
-    long currentDelay = 0;
+        if (TextUtils.isEmpty(text) || targetGroups == null || targetGroups.isEmpty()) {
+            android.widget.Toast.makeText(this, "没有可发送的群组", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-    for (int i = 0; i < targetGroups.size(); i++) {
-        final long dialogId = targetGroups.get(i);
-        
-        // 延迟计算（加一点随机波动防封）
-        int randomOffset = org.telegram.messenger.Utilities.random.nextInt(5) - 2; 
-        long delayMs = (intervalSec + randomOffset) * 1000L;
-        if (delayMs < 1000L) delayMs = 1000L;
+        final int account = currentAccount;
+        ArrayList<Long> ids = new ArrayList<>(targetGroups);
+        ArrayList<String> names = new ArrayList<>();
+        for (Long dialogId : ids) {
+            String title = "群组 " + dialogId;
+            if (dialogId != null && dialogId < 0) {
+                TLRPC.Chat chat = MessagesController.getInstance(account).getChat(-dialogId);
+                if (chat != null && !TextUtils.isEmpty(chat.title)) {
+                    title = chat.title;
+                }
+            }
+            names.add(title);
+        }
 
-        currentDelay += delayMs;
-        final long finalDelay = currentDelay;
-
-        org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
-            sendMessagesHelper.sendMessage(org.telegram.messenger.SendMessagesHelper.SendMessageParams.of(
-                text, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false
-            ));
-        }, finalDelay);
+        int minSeconds = Math.max(1, intervalSec - 2);
+        int maxSeconds = Math.max(minSeconds, intervalSec + 2);
+        long taskId = org.telegram.messenger.MangoGroupBroadcastManager.start(
+                account, text, ids, names, minSeconds, maxSeconds);
+        if (taskId == 0) {
+            android.widget.Toast.makeText(this, "群发任务创建失败", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        android.widget.Toast.makeText(this,
+                "已创建群发任务，共 " + ids.size() + " 个群组",
+                android.widget.Toast.LENGTH_LONG).show();
     }
-    
-    android.widget.Toast.makeText(this, "🚀 已开始向 " + targetGroups.size() + " 个群后台发送！", android.widget.Toast.LENGTH_LONG).show();
-}
 
 }
