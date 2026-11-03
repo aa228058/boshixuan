@@ -2675,7 +2675,13 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     }
                     getStatsController().incrementSentItemsCount(ApplicationLoader.getCurrentNetworkType(), StatsController.TYPE_MESSAGES, sentCount);
                 } else {
-                    AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, null, req));
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                            if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                            AlertsCreator.processError(currentAccount, error, null, req);
+                        }
+                        }
+                    });
                 }
                 for (int a1 = 0; a1 < newMsgObjArr.size(); a1++) {
                     final TLRPC.Message newMsgObj1 = newMsgObjArr.get(a1);
@@ -3328,7 +3334,11 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
             if (error == null) {
                 getMessagesController().processUpdates((TLRPC.Updates) response, false);
             } else {
-                AndroidUtilities.runOnUIThread(() -> AlertsCreator.processError(currentAccount, error, fragment, req));
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                        AlertsCreator.processError(currentAccount, error, fragment, req);
+                    }
+                });
             }
         });
     }
@@ -7315,7 +7325,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     }
                     Utilities.stageQueue.postRunnable(() -> getMessagesController().processUpdates(updates, false));
                 } else {
-                    AlertsCreator.processError(currentAccount, error, null, request);
+                    if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                        AlertsCreator.processError(currentAccount, error, null, request);
+                    }
                     isSentError = true;
                 }
                 if (isSentError) {
@@ -7500,7 +7512,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         });
 
                     } else {
-                        AlertsCreator.processError(currentAccount, error, null, req);
+                        if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                            AlertsCreator.processError(currentAccount, error, null, req);
+                        }
                         removeFromSendingMessages(newMsgObj.id, scheduled);
                         revertEditingMessageObject(msgObj);
                     }
@@ -7737,7 +7751,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             }
                         }
                     } else {
-                        AlertsCreator.processError(currentAccount, error, null, req);
+                        if (!MangoGroupBroadcastManager.isTaskRunning(currentAccount)) {
+                            AlertsCreator.processError(currentAccount, error, null, req);
+                        }
                         isSentError = true;
                     }
                     if (isSentError) {
