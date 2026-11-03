@@ -5708,7 +5708,12 @@ if (id == TAB_MANGO_ACTIVITY) {
                     fwdRestrictedHint.hide();
                 }
             }
-            if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN && !startedTracking && !maybeStartTracking && ev.getY() >= dp(48 + 42)) {
+            // The Activity overlay starts directly below the 48dp tab strip.
+            // The regular media pages keep the original 42dp action-bar exclusion,
+            // but applying it to Activity also excluded the top of its message card
+            // from horizontal swipe detection.
+            final int swipeStartY = getSelectedTab() == TAB_MANGO_ACTIVITY ? dp(48) : dp(48 + 42);
+            if (ev != null && ev.getAction() == MotionEvent.ACTION_DOWN && !startedTracking && !maybeStartTracking && ev.getY() >= swipeStartY) {
                 startedTrackingPointerId = ev.getPointerId(0);
                 maybeStartTracking = true;
                 startedTrackingX = (int) ev.getX();
