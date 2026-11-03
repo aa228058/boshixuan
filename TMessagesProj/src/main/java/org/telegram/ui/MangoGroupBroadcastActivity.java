@@ -1,13 +1,17 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -95,13 +99,8 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         selectionActions.setOrientation(LinearLayout.HORIZONTAL);
         compose.addView(selectionActions, LayoutHelper.createLinear(-1, 46, 0, 14, 0, 0));
         TextView choose = button(context, "搜索并选择群组", false);
-        selectionActions.addView(choose, new LinearLayout.LayoutParams(0, AndroidUtilities.dp(44), 1));
+        selectionActions.addView(choose, new LinearLayout.LayoutParams(-1, AndroidUtilities.dp(44)));
         choose.setOnClickListener(v -> openGroupPicker());
-        TextView selectAll = button(context, "全选已加载", true);
-        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(0, AndroidUtilities.dp(44), 1);
-        allParams.leftMargin = AndroidUtilities.dp(8);
-        selectionActions.addView(selectAll, allParams);
-        selectAll.setOnClickListener(v -> selectAllLoadedGroups());
         selectedInfo = label(context, "尚未选择群组", 13, Theme.key_windowBackgroundWhiteGrayText, false);
         compose.addView(selectedInfo, LayoutHelper.createLinear(-1, -2, 0, 9, 0, 0));
 
@@ -148,45 +147,126 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         return view;
     }
 
-    /**
-     * Select every group currently loaded in this account's group dialog index.
-     * The standard picker remains available for searching and fine-grained selection.
-     */
-    private void selectAllLoadedGroups() {
-        Bundle args = new Bundle();
-        args.putBoolean("onlySelect", true);
-        args.putBoolean("canSelectTopics", false);
-        args.putBoolean("allowSwitchAccount", false);
-        args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY);
-        DialogsActivity source = new DialogsActivity(args);
-        ArrayList<TLRPC.Dialog> dialogs = source.getDialogsArray(currentAccount,
-                DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY, 0, false);
-        ArrayList<MessagesStorage.TopicKey> keys = new ArrayList<>();
-        for (TLRPC.Dialog dialog : dialogs) {
-            if (dialog == null || dialog.id >= 0) continue;
-            keys.add(MessagesStorage.TopicKey.of(dialog.id, 0));
+    private void openGroupPicker() {
+        if (getParentActivity() == null) return;
+        ArrayList<TLRPC.Chat> available = new ArrayList<>();
+        for (TLRPC.Dialog dialog : getMessagesController().getAllDialogs()) {
+            if (dialog == null || dialog.id >= 0 || DialogObject.isFolderDialogId(dialog.id)) continue;
+            TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
+            if (chat == null || chat.left || chat.kicked || chat.deactivated) continue;
+            if (org.telegram.messenger.ChatObject.isChannel(chat)
+                    && !chat.megagroup && !chat.gigagroup) continue;
+            available.add(chat);
         }
-        didSelectDialogs(source, keys, null, false, true, 0, 0, null);
-        if (selectedInfo != null) {
-            selectedInfo.setText("已全选当前账号已加载的 " + selectedGroups.size() + " 个群组");
-        }
+        available.sort((a, b) -> String.valueOf(a.title).compareToIgnoreCase(String.valueOf(b.title)));
+
+        LinearLayout panel = new LinearLayout(getParentActivity());
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(16),
+                AndroidUtilities.dp(18), AndroidUtilities.dp(10));
+
+        LinearLayout header = new LinearLayout(getParentActivity());
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        panel.addView(header, LayoutHelper.createLinear(-1, 42));
+        TextView heading = label(getParentActivity(), "选择群组", 17,
+                Theme.key_windowBackgroundWhiteBlackText, true);
+        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView selectAll = button(getParentActivity(), "全选", true);
+        header.addView(selectAll, LayoutHelper.createLinear(76, 36));
+
+        EditText search = new EditText(getParentActivity());
+        search.setSingleLine(true);
+        search.setTextSize(14);
+        search.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
+        search.setHintTextColor(getThemedColor(Theme.key_windowBackgroundWhiteHintText));
+        search.setHint("搜索群组名称");
+        search.setPadding(AndroidUtilities.dp(12), 0, AndroidUtilities.dp(12), 0);
+        search.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10),
+                getThemedColor(Theme.key_windowBackgroundGray)));
+        panel.addView(search, LayoutHelper.createLinear(-1, 42, 0, 10, 0, 0));
+
+        TextView count = label(getParentActivity(), "", 12,
+                Theme.key_windowBackgroundWhiteGrayText, false);
+        panel.addView(count, LayoutHelper.createLinear(-1, -2, 0, 9, 0, 7));
+
+        ScrollView listScroll = new ScrollView(getParentActivity());
+        listScroll.setFillViewport(false);
+        LinearLayout rows = new LinearLayout(getParentActivity());
+        rows.setOrientation(LinearLayout.VERTICAL);
+        listScroll.addView(rows, new ScrollView.LayoutParams(-1, -2));
+        panel.addView(listScroll, LayoutHelper.createLinear(-1, 380));
+
+        Runnable render = () -> {
+            rows.removeAllViews();
+            String query = search.getText() == null ? "" : search.getText().toString().trim().toLowerCase();
+            int visible = 0;
+            for (TLRPC.Chat chat : available) {
+                String name = chat.title == null ? "" : chat.title;
+                if (!query.isEmpty() && !name.toLowerCase().contains(query)) continue;
+                visible++;
+                long dialogId = -chat.id;
+                boolean selected = selectedGroups.contains(dialogId);
+                LinearLayout row = new LinearLayout(getParentActivity());
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(9),
+                        AndroidUtilities.dp(12), AndroidUtilities.dp(9));
+                int background = selected
+                        ? getThemedColor(Theme.key_featuredStickers_addButton)
+                        : getThemedColor(Theme.key_windowBackgroundGray);
+                row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), background));
+                TextView nameView = label(getParentActivity(), (selected ? "✓  " : "") + name, 14,
+                        selected ? Theme.key_featuredStickers_buttonText
+                                : Theme.key_windowBackgroundWhiteBlackText, selected);
+                row.addView(nameView, LayoutHelper.createLinear(-1, -2));
+                rows.addView(row, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 6));
+                row.setOnClickListener(v -> {
+                    int index = selectedGroups.indexOf(dialogId);
+                    if (index >= 0) {
+                        selectedGroups.remove(index);
+                        if (index < selectedNames.size()) selectedNames.remove(index);
+                    } else {
+                        selectedGroups.add(dialogId);
+                        selectedNames.add(name);
+                    }
+                    render.run();
+                });
+            }
+            count.setText("已选择 " + selectedGroups.size() + " 个群组 · 当前显示 " + visible + " 个");
+        };
+        selectAll.setOnClickListener(v -> {
+            selectedGroups.clear();
+            selectedNames.clear();
+            String query = search.getText() == null ? "" : search.getText().toString().trim().toLowerCase();
+            for (TLRPC.Chat chat : available) {
+                String name = chat.title == null ? "" : chat.title;
+                if (!query.isEmpty() && !name.toLowerCase().contains(query)) continue;
+                selectedGroups.add(-chat.id);
+                selectedNames.add(name);
+            }
+            render.run();
+        });
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { render.run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+        render.run();
+
+        AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider)
+                .setView(panel)
+                .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
+                .setPositiveButton("完成", (d, w) -> {
+                    if (selectedInfo != null) selectedInfo.setText("已选择 " + selectedGroups.size() + " 个群组");
+                }).show();
+        roundDialog(dialog);
     }
 
-    private void openGroupPicker() {
-        Bundle args = new Bundle();
-        args.putBoolean("onlySelect", true);
-        args.putBoolean("canSelectTopics", false);
-        args.putBoolean("allowSwitchAccount", false);
-        args.putInt("dialogsType", DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY);
-        DialogsActivity picker = new DialogsActivity(args) {
-            @Override
-            public boolean shouldShowNextButton(DialogsActivity fragment, ArrayList<Long> dids, CharSequence comment, boolean param) {
-                return dids != null && !dids.isEmpty();
-            }
-        };
-        picker.forceShowSearch = true;
-        picker.setDelegate(this);
-        presentFragment(picker);
+    private void roundDialog(AlertDialog dialog) {
+        if (dialog != null && dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(Theme.createRoundRectDrawable(
+                    AndroidUtilities.dp(18), getThemedColor(Theme.key_windowBackgroundWhite)));
+        }
     }
 
     @Override
@@ -270,9 +350,15 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             item.setPadding(AndroidUtilities.dp(11), AndroidUtilities.dp(10), AndroidUtilities.dp(11), AndroidUtilities.dp(10));
             item.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), getThemedColor(Theme.key_windowBackgroundGray)));
             taskContainer.addView(item, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 9));
-            TextView heading = label(getParentActivity(), stateName(task.state) + " · " + task.processed + "/" + task.total
-                    + " · 已加入发送队列 " + task.queued + " · 调用异常 " + task.failed, 14, Theme.key_windowBackgroundWhiteBlackText, true);
+            TextView heading = label(getParentActivity(), stateName(task.state) + " · 已完成 " + task.queued
+                    + " · 失败 " + task.failed, 14, Theme.key_windowBackgroundWhiteBlackText, true);
             item.addView(heading, LayoutHelper.createLinear(-1, -2));
+            ProgressBar progress = new ProgressBar(getParentActivity(), null, android.R.attr.progressBarStyleHorizontal);
+            progress.setMax(Math.max(1, task.total));
+            progress.setProgress(task.processed);
+            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_featuredStickers_addButton)));
+            progress.setProgressBackgroundTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundGray)));
+            item.addView(progress, LayoutHelper.createLinear(-1, 6, 0, 8, 0, 0));
             TextView preview = label(getParentActivity(), task.message, 13, Theme.key_windowBackgroundWhiteGrayText, false);
             preview.setMaxLines(3);
             item.addView(preview, LayoutHelper.createLinear(-1, -2, 0, 5, 0, 0));
@@ -308,18 +394,45 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             if (task.logs.size() > 8) {
                 logText += expanded ? "\n收起日志" : "\n展开全部日志（共 " + task.logs.size() + " 条）";
             }
-            TextView logs = label(getParentActivity(), logText,
-                    12, Theme.key_windowBackgroundWhiteGrayText, false);
-            logs.setMaxLines(expanded ? 110 : 9);
-            if (task.logs.size() > 8) {
-                logs.setOnClickListener(v -> {
-                    if (expandedTaskLogs.contains(task.id)) expandedTaskLogs.remove(task.id);
-                    else expandedTaskLogs.add(task.id);
-                    renderTasks();
-                });
+            String recentTime = "";
+            if (!task.logs.isEmpty()) {
+                int separator = task.logs.get(0).indexOf(" · ");
+                recentTime = separator > 0 ? task.logs.get(0).substring(0, separator) : "";
             }
-            item.addView(logs, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
+            TextView logs = label(getParentActivity(), "最近记录  " + (recentTime.isEmpty() ? "暂无" : recentTime)
+                    + "   ·   " + stateName(task.state) + "   ·   查看全部", 13,
+                    Theme.key_windowBackgroundWhiteBlueText, true);
+            logs.setOnClickListener(v -> showTaskDetails(task));
+            item.addView(logs, LayoutHelper.createLinear(-1, 42, 0, 7, 0, 0));
         }
+    }
+
+    private void showTaskDetails(MangoGroupBroadcastTaskStore.Task task) {
+        if (getParentActivity() == null) return;
+        LinearLayout content = new LinearLayout(getParentActivity());
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(AndroidUtilities.dp(18), AndroidUtilities.dp(14),
+                AndroidUtilities.dp(18), AndroidUtilities.dp(8));
+        TextView summary = label(getParentActivity(), stateName(task.state) + " · 已完成 "
+                + task.queued + " · 失败 " + task.failed + " · 共 " + task.total + " 个群组",
+                14, Theme.key_windowBackgroundWhiteBlackText, true);
+        content.addView(summary, LayoutHelper.createLinear(-1, -2));
+        ScrollView scroll = new ScrollView(getParentActivity());
+        LinearLayout rows = new LinearLayout(getParentActivity());
+        rows.setOrientation(LinearLayout.VERTICAL);
+        String details = task.logs.isEmpty() ? "暂无发送记录" : android.text.TextUtils.join("\n\n", task.logs);
+        TextView logText = label(getParentActivity(), details, 13,
+                Theme.key_windowBackgroundWhiteGrayText, false);
+        logText.setTextIsSelectable(true);
+        rows.addView(logText, LayoutHelper.createLinear(-1, -2));
+        scroll.addView(rows, new ScrollView.LayoutParams(-1, -2));
+        content.addView(scroll, LayoutHelper.createLinear(-1, 420, 0, 12, 0, 0));
+        AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider)
+                .setTitle("群发任务详情")
+                .setView(content)
+                .setPositiveButton(LocaleController.getString(R.string.OK), null)
+                .show();
+        roundDialog(dialog);
     }
 
     private void addAction(LinearLayout parent, String text, Runnable action) {
