@@ -24,7 +24,19 @@ public final class CrossAccountInboxReplyMatcher {
     public static boolean isReplyToOwnGroupMessage(int account, long dialogId, MessageObject message,
                                                    java.util.ArrayList<MessageObject> candidates) {
         if (message == null || message.messageOwner == null || message.messageOwner.out
-                || dialogId >= 0 || message.deleted || message.getDialogId() != dialogId) {
+                || message.deleted || message.getDialogId() != dialogId) {
+            return false;
+        }
+
+        // Private incoming messages belong in the unified inbox as well. Exclude
+        // Saved Messages and encrypted-chat dialog ids; this store currently
+        // keeps ordinary user-to-user conversations only.
+        if (dialogId > 0) {
+            UserConfig config = UserConfig.getInstance(account);
+            return !DialogObject.isEncryptedDialog(dialogId)
+                    && dialogId != config.getClientUserId();
+        }
+        if (dialogId == 0) {
             return false;
         }
 
