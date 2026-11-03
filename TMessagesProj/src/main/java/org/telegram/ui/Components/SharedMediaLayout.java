@@ -4261,11 +4261,16 @@ if (id == TAB_MANGO_ACTIVITY) {
 
             @Override
             public void onSamePageSelected() {
-                if (mActivityOverlay != null && mActivityOverlay.getVisibility() == View.VISIBLE && mActivityListView != null) {
-                    mActivityListView.smoothScrollToPosition(0);
-                } else {
-                    scrollToTop();
+                if (getSelectedTab() == TAB_MANGO_ACTIVITY) {
+                    // While Activity is loading or showing its empty state there
+                    // is no RecyclerView to scroll; never scroll the hidden media page.
+                    if (mActivityOverlay != null && mActivityOverlay.getVisibility() == View.VISIBLE
+                            && mActivityListView != null) {
+                        mActivityListView.smoothScrollToPosition(0);
+                    }
+                    return;
                 }
+                scrollToTop();
             }
 
             @Override
@@ -4551,6 +4556,12 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     private void scrollToTop() {
+        if (getSelectedTab() == TAB_MANGO_ACTIVITY) {
+            if (mActivityListView != null) {
+                mActivityListView.smoothScrollToPosition(0);
+            }
+            return;
+        }
         int height;
         switch (mediaPages[0].selectedType) {
             case 0:
