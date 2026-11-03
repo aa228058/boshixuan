@@ -492,7 +492,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         row.privatePreview = true;
         InboxDialogCell cell = new InboxDialogCell(getParentActivity(), resourceProvider);
         cell.bind(row, false);
-        cell.setOnClickListener(v -> openReply(reply));
         UItem item = UItem.asCustom(cell);
         item.id = ITEM_REPLY_ROW;
         item.object = reply;
