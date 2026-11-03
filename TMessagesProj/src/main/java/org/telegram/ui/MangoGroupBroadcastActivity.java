@@ -211,9 +211,9 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(9),
                         AndroidUtilities.dp(12), AndroidUtilities.dp(9));
                 int background = selected
-                        ? getThemedColor(Theme.key_windowBackgroundWhiteBlueText)
+                        ? getThemedColor(Theme.key_featuredStickers_addButton)
                         : getThemedColor(Theme.key_windowBackgroundGray);
-                row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), background));
+                row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(12), background));
                 TextView nameView = label(getParentActivity(), (selected ? "✓  " : "") + name, 14,
                         selected ? Theme.key_featuredStickers_buttonText
                                 : Theme.key_windowBackgroundWhiteBlackText, selected);
@@ -396,12 +396,13 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 recentTime = separator > 0 ? task.logs.get(0).substring(0, separator) : "";
             }
             TextView logs = label(getParentActivity(), "最近记录  " + (recentTime.isEmpty() ? "暂无" : recentTime)
-                    + "   ·   " + stateName(task.state) + "   ·   查看全部", 13,
+                    + "   ·   " + stateName(task.state) + "   ·   查看全部  ›", 14,
                     Theme.key_windowBackgroundWhiteBlueText, true);
             logs.setOnClickListener(v -> showTaskDetails(task));
-            logs.setMinHeight(AndroidUtilities.dp(54));
+            logs.setMinHeight(AndroidUtilities.dp(64));
             logs.setGravity(Gravity.CENTER_VERTICAL);
-            item.addView(logs, LayoutHelper.createLinear(-1, 54, 0, 7, 0, 0));
+            logs.setPadding(AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4), 0);
+            item.addView(logs, LayoutHelper.createLinear(-1, 64, 0, 7, 0, 0));
         }
     }
 
