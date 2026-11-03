@@ -136,17 +136,28 @@ public final class CrossAccountInboxStore {
         String accountScope = ui.getString("cross_account_inbox_scope_accounts", "");
         if (!TextUtils.isEmpty(accountScope)) {
             boolean included = false;
+            boolean hasActiveSelection = false;
+            HashSet<Integer> activeAccounts = new HashSet<>();
+            for (int activeAccount : UserConfig.getActivatedAccounts()) {
+                activeAccounts.add(activeAccount);
+            }
             String[] accountIds = accountScope.split(",");
             for (String value : accountIds) {
                 try {
-                    if (Integer.parseInt(value.trim()) == account) {
-                        included = true;
-                        break;
+                    int selectedAccount = Integer.parseInt(value.trim());
+                    if (activeAccounts.contains(selectedAccount)) {
+                        hasActiveSelection = true;
+                        if (selectedAccount == account) {
+                            included = true;
+                        }
                     }
                 } catch (Exception ignore) {
                 }
             }
-            if (!included) return false;
+            // Match the settings UI recovery behavior: if every saved account
+            // was removed or logged out, the effective scope returns to all
+            // currently active accounts rather than silently collecting nothing.
+            if (hasActiveSelection && !included) return false;
         }
 
         int typeFilter = ui.getInt("cross_account_inbox_reply_type", 0);
