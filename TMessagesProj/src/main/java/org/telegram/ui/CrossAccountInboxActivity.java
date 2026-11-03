@@ -903,17 +903,27 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         if (getParentActivity() == null) return;
         java.util.HashSet<Integer> accounts = getSelectedInboxAccounts();
         java.util.HashMap<String, String> labelsById = new java.util.HashMap<>();
-        for (CrossAccountInboxStore.Entry entry : CrossAccountInboxStore.getAllEntries()) {
-            if (accounts.contains(entry.account)) {
-                String key = getInboxGroupKey(entry.account, entry.ownerId, entry.dialogId);
-                String title = TextUtils.isEmpty(entry.groupTitle) ? "群组消息" : entry.groupTitle;
-                labelsById.put(key, "账号 " + (entry.account + 1) + " · " + title);
+        // Build the picker from the selected accounts' actual dialog list, not
+        // from captured replies. This lets users configure group filters before
+        // the first qualifying reply arrives.
+        for (int account : accounts) {
+            UserConfig config = UserConfig.getInstance(account);
+            if (!config.isClientActivated()) continue;
+            MessagesController controller = MessagesController.getInstance(account);
+            for (TLRPC.Dialog dialog : controller.getAllDialogs()) {
+                if (dialog == null || dialog.id >= 0 || DialogObject.isFolderDialogId(dialog.id)) continue;
+                TLRPC.Chat chat = controller.getChat(-dialog.id);
+                if (chat == null || org.telegram.messenger.ChatObject.isChannel(chat)
+                        && !chat.megagroup && !chat.gigagroup) continue;
+                String key = getInboxGroupKey(account, config.getClientUserId(), dialog.id);
+                String title = TextUtils.isEmpty(chat.title) ? "群组消息" : chat.title;
+                labelsById.put(key, "账号 " + (account + 1) + " · " + title);
             }
         }
         if (labelsById.isEmpty()) {
             java.util.HashSet<String> selectedGroups = getSelectedInboxGroups();
             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity())
-                    .setMessage("当前账号范围内还没有可筛选的群组回复。");
+                    .setMessage("所选账号当前没有已加载的群组。");
             if (!selectedGroups.isEmpty()) {
                 builder.setMessage("当前账号范围内已没有可选群组，是否清除之前保存的群组筛选？")
                         .setPositiveButton("清除筛选", (dialog, which) -> {
