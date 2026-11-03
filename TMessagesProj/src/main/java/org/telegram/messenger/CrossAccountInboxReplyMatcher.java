@@ -61,7 +61,13 @@ public final class CrossAccountInboxReplyMatcher {
             }
         }
 
-        MessageObject target = controller.dialogMessagesByIds.get(reply.reply_to_msg_id);
+        // The normal reply loader may have resolved the exact target asynchronously
+        // before this retry. Prefer that object, then fall back to account-local caches.
+        MessageObject target = message.replyMessageObject;
+        if (target == null || target.messageOwner == null || target.deleted
+                || target.getId() != reply.reply_to_msg_id || target.getDialogId() != dialogId) {
+            target = controller.dialogMessagesByIds.get(reply.reply_to_msg_id);
+        }
         if (target == null || target.messageOwner == null || target.deleted
                 || target.getId() != reply.reply_to_msg_id || target.getDialogId() != dialogId) {
             target = findCachedMessage(controller, dialogId, reply.reply_to_msg_id);
