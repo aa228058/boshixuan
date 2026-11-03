@@ -12021,7 +12021,7 @@ private void showRealActivityPage(boolean display) {
                 org.telegram.messenger.AndroidUtilities.dp(16),
                 org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhite)));
         mActivityCardContainer.setClipToOutline(true);
-        mActivityCardContainer.addView(mActivityCardContainer,
+        mActivityOverlay.addView(mActivityCardContainer,
                 org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
