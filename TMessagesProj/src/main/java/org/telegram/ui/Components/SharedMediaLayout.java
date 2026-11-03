@@ -6970,6 +6970,19 @@ if (!isStoriesView()) {
     }
 
     private void switchToCurrentSelectedMode(boolean animated) {
+        // Activity is a virtual profile tab, not an index in sharedMediaData.
+        int selectedPage = animated ? 1 : 0;
+        if (mediaPages[selectedPage].selectedType == TAB_MANGO_ACTIVITY) {
+            if (mediaPages[selectedPage].listView != null) {
+                mediaPages[selectedPage].listView.stopScroll();
+                RecyclerView.Adapter adapter = mediaPages[selectedPage].listView.getAdapter();
+                if (adapter != null) {
+                    recycleAdapter(adapter);
+                    mediaPages[selectedPage].listView.setAdapter(null);
+                }
+            }
+            return;
+        }
         boolean sections = false;
         if (giftsContainer != null) {
             giftsContainer.resetReordering();
