@@ -21519,7 +21519,16 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
             }
         }
-        getMediaDataController().loadReplyMessagesForMessages(messages, dialogId, mode, 0, null, 0, null);
+        getMediaDataController().loadReplyMessagesForMessages(messages, dialogId, mode, 0, () -> {
+            // Reply targets may be fetched asynchronously. Collect only after they
+            // have been resolved so group replies are not dropped just because the
+            // original outgoing message was not already present in the local cache.
+            if (!scheduled && !quickReplies) {
+                for (int i = 0; i < messages.size(); i++) {
+                    CrossAccountInboxStore.recordReply(currentAccount, dialogId, messages.get(i));
+                }
+            }
+        }, 0, null);
         if (mode == ChatActivity.MODE_QUICK_REPLIES) {
             QuickRepliesController.getInstance(currentAccount).checkLocalMessages(messages);
         }
@@ -21528,11 +21537,6 @@ public class MessagesController extends BaseController implements NotificationCe
             AutoReactionManager.getInstance(currentAccount).processNewMessages(messages);
             MessageEchoManager.process(currentAccount, messages);
             MangoAutoReadManager.process(currentAccount, messages);
-            // Capture qualifying group replies at the message-ingestion point so
-            // collection continues even when the inbox screen is not open.
-            for (int i = 0; i < messages.size(); i++) {
-                CrossAccountInboxStore.recordReply(currentAccount, dialogId, messages.get(i));
-            }
         }
         getNotificationCenter().postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, messages, scheduled, mode);
 
