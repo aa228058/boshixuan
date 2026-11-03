@@ -4835,6 +4835,11 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     public int getClosestTab() {
+        // Activity is rendered in its own overlay, not in either MediaPage.
+        // Never expose the stale media-page selection while Activity is active.
+        if (getSelectedTab() == TAB_MANGO_ACTIVITY) {
+            return TAB_MANGO_ACTIVITY;
+        }
         if (mediaPages[1] != null && mediaPages[1].getVisibility() == View.VISIBLE) {
             if (tabsAnimationInProgress && !backAnimation) {
                 return mediaPages[1].selectedType;
