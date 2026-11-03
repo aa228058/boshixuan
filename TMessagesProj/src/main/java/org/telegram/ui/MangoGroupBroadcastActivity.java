@@ -211,7 +211,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(9),
                         AndroidUtilities.dp(12), AndroidUtilities.dp(9));
                 int background = selected
-                        ? getThemedColor(Theme.key_windowBackgroundBlueText)
+                        ? getThemedColor(Theme.key_windowBackgroundWhiteBlueText)
                         : getThemedColor(Theme.key_windowBackgroundGray);
                 row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), background));
                 TextView nameView = label(getParentActivity(), (selected ? "✓  " : "") + name, 14,
@@ -357,7 +357,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             ProgressBar progress = new ProgressBar(getParentActivity(), null, android.R.attr.progressBarStyleHorizontal);
             progress.setMax(Math.max(1, task.total));
             progress.setProgress(task.processed);
-            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundBlueText)));
+            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundWhiteBlueText)));
             progress.setProgressBackgroundTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundGray)));
             item.addView(progress, LayoutHelper.createLinear(-1, 6, 0, 8, 0, 0));
             TextView preview = label(getParentActivity(), task.message, 13, Theme.key_windowBackgroundWhiteGrayText, false);
@@ -426,7 +426,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 boolean success = entry.contains("发送成功");
                 boolean failed = entry.contains("失败") || entry.contains("调用异常");
                 TextView logRow = label(getParentActivity(), entry, 13,
-                        success ? Theme.key_windowBackgroundGreenText
+                        success ? Theme.key_windowBackgroundWhiteGreenText
                                 : failed ? Theme.key_text_RedRegular : Theme.key_windowBackgroundWhiteBlackText,
                         false);
                 logRow.setTextIsSelectable(true);
