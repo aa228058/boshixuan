@@ -136,6 +136,42 @@ public final class MangoGroupBroadcastTaskStore {
         }
     }
 
+    /** Convert an asynchronously rejected send from queued to failed for its target group. */
+    public static void markSendFailure(int account, long dialogId, String error) {
+        synchronized (LOCK) {
+            ArrayList<Task> tasks = read(account);
+            for (int i = 0; i < tasks.size(); i++) {
+                Task old = tasks.get(i);
+                int targetIndex = old.targetIds.indexOf(dialogId);
+                if (targetIndex < 0) continue;
+                String targetName = targetIndex < old.targetNames.size()
+                        ? old.targetNames.get(targetIndex) : "群组 " + dialogId;
+                String queuedMarker = " · " + targetName + " · 已提交发送队列";
+                int queuedLogIndex = -1;
+                for (int j = 0; j < old.logs.size(); j++) {
+                    if (old.logs.get(j).contains(queuedMarker)) {
+                        queuedLogIndex = j;
+                        break;
+                    }
+                }
+                if (queuedLogIndex < 0) continue;
+                ArrayList<String> logs = new ArrayList<>(old.logs);
+                String safeError = error == null ? "发送失败" : error.replace("\\n", " ").replace("\\r", " ");
+                if (safeError.length() > 180) safeError = safeError.substring(0, 180) + "…";
+                String time = new java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        .format(new java.util.Date());
+                logs.set(queuedLogIndex, time + " · " + targetName + " · 发送失败：" + safeError);
+                int queued = Math.max(0, old.queued - 1);
+                int failed = old.failed + 1;
+                tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total,
+                        old.processed, queued, failed, old.state, old.targetNames, old.targetIds,
+                        logs, old.minSeconds, old.maxSeconds));
+                write(account, tasks);
+                return;
+            }
+        }
+    }
+
     public static void setState(int account, long taskId, int state) {
         synchronized (LOCK) {
             ArrayList<Task> tasks = read(account);
