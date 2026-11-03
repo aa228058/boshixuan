@@ -442,7 +442,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         // The unified inbox is a filtered message list, not a duplicate of every
         // account's ordinary dialog list. Only captured messages passing the
         // selected scope are shown.
-        items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_filter,
+        items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
                 "筛选设置 · " + getReplyFilterSummary()));
 
         ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
