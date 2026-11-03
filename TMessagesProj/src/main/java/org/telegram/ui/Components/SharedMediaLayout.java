@@ -4936,7 +4936,9 @@ if (id == TAB_MANGO_ACTIVITY) {
                 break;
             }
         }
-        System.arraycopy(mediaCounts, 0, hasMedia, 0, 6);
+        if (mediaCounts != null) {
+            System.arraycopy(mediaCounts, 0, hasMedia, 0, Math.min(mediaCounts.length, hasMedia.length));
+        }
         updateTabs(true);
 //        if (!hadMedia && scrollSlidingTextTabStrip.getCurrentTabId() == 6) {
 //            scrollSlidingTextTabStrip.resetTab();
