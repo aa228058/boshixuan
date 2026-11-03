@@ -656,6 +656,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     public boolean allowUsers;
     public boolean allowBots;
     private boolean closeFragment;
+    /** Allows a caller to keep the action-bar search available in a selection dialog. */
+    public boolean forceShowSearch;
 
     private DialogsActivityDelegate delegate;
 
@@ -3270,7 +3272,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             */
         });
         if (initialDialogsType == DIALOGS_TYPE_ADD_USERS_TO || isArchive() && getDialogsArray(currentAccount, initialDialogsType, folderId, false).isEmpty()) {
+            if (!forceShowSearch) {
             searchItem.setVisibility(View.GONE);
+        }
         }
         searchItem.setVisibility(View.GONE);
 
