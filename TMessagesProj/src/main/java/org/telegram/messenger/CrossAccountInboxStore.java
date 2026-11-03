@@ -180,14 +180,22 @@ public final class CrossAccountInboxStore {
         return true;
     }
 
-    /** Collect replies from a regular history page, allowing exact targets in the same page. */
+    /**
+     * Collect replies from a regular history page only after Telegram has had a
+     * chance to resolve reply targets that are not part of the current page.
+     * Without this step, older group replies could be silently missed whenever
+     * their referenced outgoing message was outside the loaded history window.
+     */
     public static void recordRepliesFromHistory(int account, long dialogId, ArrayList<MessageObject> messages) {
         if (messages == null || messages.isEmpty() || dialogId == 0) {
             return;
         }
-        for (int i = 0; i < messages.size(); i++) {
-            recordReply(account, dialogId, messages.get(i), messages);
-        }
+        MediaDataController.getInstance(account).loadReplyMessagesForMessages(
+                messages, dialogId, org.telegram.ui.ChatActivity.MODE_DEFAULT, 0, () -> {
+                    for (int i = 0; i < messages.size(); i++) {
+                        recordReply(account, dialogId, messages.get(i), messages);
+                    }
+                }, 0, null);
     }
 
     private static void persistReply(int account, long ownerId, long dialogId, int messageId,
