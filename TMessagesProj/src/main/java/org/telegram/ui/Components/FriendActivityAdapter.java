@@ -205,6 +205,11 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         }
         header.addView(groupAvatar, LayoutHelper.createLinear(42, 42));
 
+        LinearLayout titleContainer = new LinearLayout(context);
+        titleContainer.setOrientation(LinearLayout.VERTICAL);
+        titleContainer.setGravity(Gravity.CENTER_VERTICAL);
+        titleContainer.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(4), 0);
+
         TextView title = new TextView(context);
         title.setText(chat != null && chat.title != null ? chat.title : "未知群组");
         title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
@@ -212,8 +217,20 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         title.setTypeface(AndroidUtilities.bold());
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
-        title.setPadding(AndroidUtilities.dp(10), 0, 0, 0);
-        header.addView(title, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
+        titleContainer.addView(title, LayoutHelper.createLinear(
+                LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        TextView subtitle = new TextView(context);
+        subtitle.setText(group.messages.size() + " 条动态");
+        subtitle.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        subtitle.setTextSize(12);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams subtitleParams = LayoutHelper.createLinear(
+                LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT);
+        subtitleParams.topMargin = AndroidUtilities.dp(2);
+        titleContainer.addView(subtitle, subtitleParams);
+        header.addView(titleContainer, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
         TextView arrow = new TextView(context);
         arrow.setText(collapsedGroups.contains(group.dialogId) ? "⌄" : "⌃");
@@ -252,7 +269,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(3), AndroidUtilities.dp(10), AndroidUtilities.dp(3));
-        row.setMinimumHeight(AndroidUtilities.dp(46));
+        row.setMinimumHeight(AndroidUtilities.dp(58));
         row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_windowBackgroundWhite)));
 
         BackupImageView senderAvatar = new BackupImageView(context);
@@ -278,10 +295,11 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         messageView.setText(text);
         messageView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
         messageView.setTextSize(14);
-        messageView.setSingleLine(true);
+        messageView.setMaxLines(2);
         messageView.setEllipsize(TextUtils.TruncateAt.END);
         messageView.setGravity(Gravity.CENTER_VERTICAL);
-        messageView.setPadding(AndroidUtilities.dp(10), 0, AndroidUtilities.dp(6), 0);
+        messageView.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(4),
+                AndroidUtilities.dp(6), AndroidUtilities.dp(4));
         row.addView(messageView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f));
 
         TextView timeView = new TextView(context);
