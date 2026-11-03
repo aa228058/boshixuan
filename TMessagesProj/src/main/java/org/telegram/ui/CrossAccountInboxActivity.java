@@ -132,9 +132,9 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     return 0;
                 }
                 CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
-                // Pending rows swipe left to mark handled; handled rows swipe
-                // right to restore them to the pending inbox.
-                return reply.handled ? ItemTouchHelper.RIGHT : ItemTouchHelper.LEFT;
+                // Swipe right to mark the matching reply as read/handled.
+                // Handled rows leave the active list and are not restored by swiping. 
+                return reply.handled ? 0 : ItemTouchHelper.RIGHT;
             }
 
             @Override
@@ -148,9 +148,10 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                     return;
                 }
                 CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
-                // Swipe left marks handled; swipe right restores the pending state.
+                // A right swipe clears this hit from the active inbox until a new
+                // message independently matches the saved filters.
                 CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
-                        reply.messageId, direction == ItemTouchHelper.LEFT);
+                        reply.messageId, direction == ItemTouchHelper.RIGHT);
             }
         });
         replySwipeHelper.attachToRecyclerView(listView);
@@ -446,65 +447,49 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
     }
 
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        // The unified inbox is a filtered message list, not a duplicate of every
-        // account's ordinary dialog list. Only captured messages passing the
-        // selected scope are shown.
+        // The filter controls stay at the top; only matching, unhandled messages
+        // are rendered below. Each message uses the native Mango dialog row so
+        // group avatar, group title, sender preview and owning account stay visible.
         items.add(UItem.asButton(ITEM_SCOPE, R.drawable.msg_retry,
                 "筛选设置 · " + getReplyFilterSummary()));
 
         ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
-        int handledCount = 0;
-        for (CrossAccountInboxStore.Entry reply : replies) {
-            if (reply.handled && matchesReplyFilters(reply)) handledCount++;
-        }
-        if (handledCount > 0) {
-            items.add(UItem.asButton(ITEM_SHOW_HANDLED, R.drawable.msg_retry,
-                    (showHandledReplies ? "隐藏" : "显示") + "已处理消息（" + handledCount + "）"));
-        }
-
-        // getAllEntries() is globally sorted newest-first. LinkedHashMap keeps
-        // each dialog in the order of its newest message while grouping every
-        // account/dialog pair together (same-named groups in different accounts
-        // must never be merged).
-        LinkedHashMap<String, ArrayList<CrossAccountInboxStore.Entry>> groupedReplies = new LinkedHashMap<>();
-        for (CrossAccountInboxStore.Entry reply : replies) {
-            if (reply.handled != showHandledReplies || !matchesReplyFilters(reply)) continue;
-            String groupKey = reply.account + ":" + reply.ownerId + ":" + reply.dialogId;
-            ArrayList<CrossAccountInboxStore.Entry> group = groupedReplies.get(groupKey);
-            if (group == null) {
-                group = new ArrayList<>();
-                groupedReplies.put(groupKey, group);
-            }
-            group.add(reply);
-        }
-
         int shownReplies = 0;
-        for (ArrayList<CrossAccountInboxStore.Entry> group : groupedReplies.values()) {
-            if (group.isEmpty()) continue;
-            CrossAccountInboxStore.Entry first = group.get(0);
-            String groupTitle = TextUtils.isEmpty(first.groupTitle)
-                    ? (first.dialogId < 0 ? "群组消息" : "私聊消息") : first.groupTitle;
-            String accountLabel = "账号 " + (first.account + 1);
-            items.add(UItem.asHeader(groupTitle + " · " + accountLabel));
-
-            // Entries within each group retain the store's date-descending order.
-            for (CrossAccountInboxStore.Entry reply : group) {
-                String typeLabel = reply.messageType == 2 ? "媒体" : "文字";
-                String senderLabel = TextUtils.isEmpty(reply.senderName) ? "新消息" : reply.senderName;
-                String timeLabel = reply.date > 0 ? LocaleController.formatDateChat(reply.date) : "";
-                String detail = senderLabel + " · " + typeLabel
-                        + (TextUtils.isEmpty(timeLabel) ? "" : " · " + timeLabel)
-                        + "\n" + reply.preview;
-                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, senderLabel);
-                row.subtext = detail;
-                row.object = reply;
-                items.add(row);
-                shownReplies++;
-            }
+        for (CrossAccountInboxStore.Entry reply : replies) {
+            if (reply.handled || !matchesReplyFilters(reply)) continue;
+            items.add(createReplyRowItem(reply));
+            shownReplies++;
         }
         if (shownReplies == 0) {
             items.add(UItem.asShadow("当前筛选条件下没有符合条件的消息"));
         }
+    }
+
+    private UItem createReplyRowItem(CrossAccountInboxStore.Entry reply) {
+        Entry row = new Entry();
+        row.account = reply.account;
+        row.owner = reply.ownerId;
+        row.dialogId = reply.dialogId;
+        row.date = reply.date;
+        row.title = TextUtils.isEmpty(reply.groupTitle)
+                ? (reply.dialogId < 0 ? "群组消息" : "私聊消息") : reply.groupTitle;
+        row.preview = (TextUtils.isEmpty(reply.senderName) ? "新消息" : reply.senderName)
+                + " · " + reply.preview;
+        TLRPC.User me = UserConfig.getInstance(reply.account).getCurrentUser();
+        String ownerName = me == null ? "" : UserObject.getUserName(me);
+        row.accountName = "账号 " + (reply.account + 1)
+                + (TextUtils.isEmpty(ownerName) ? "" : " · " + ownerName);
+        // Reuse the same native DialogCell renderer as the regular Mango inbox.
+        // The synthetic dialog is intentionally privatePreview so it resolves
+        // the peer from the owning account instead of the currently selected one.
+        row.privatePreview = true;
+        InboxDialogCell cell = new InboxDialogCell(getParentActivity(), resourceProvider);
+        cell.bind(row, false);
+        cell.setOnClickListener(v -> openReply(reply));
+        UItem item = UItem.asCustom(cell);
+        item.id = ITEM_REPLY_ROW;
+        item.object = reply;
+        return item;
     }
 
     private UItem createRowItem(Entry row) {
@@ -787,8 +772,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             showInboxFilterMenu();
         } else if (item.id == ITEM_REPLY_ROW && item.object instanceof CrossAccountInboxStore.Entry) {
             openReply((CrossAccountInboxStore.Entry) item.object);
-        } else if (item.id == ITEM_REPLY_SEND && item.object instanceof CrossAccountInboxStore.Entry) {
-            showQuickReply((CrossAccountInboxStore.Entry) item.object);
         } else if (item.id == ITEM_REPLY_HANDLED && item.object instanceof CrossAccountInboxStore.Entry) {
             CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
             CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
@@ -796,9 +779,6 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         } else if (item.id == ITEM_UNREAD) {
             unreadOnly = !unreadOnly;
             snapshotDirty = true;
-            listView.adapter.update(true);
-        } else if (item.id == ITEM_SHOW_HANDLED) {
-            showHandledReplies = !showHandledReplies;
             listView.adapter.update(true);
         } else if (item.id == ITEM_MORE) {
             for (int account : UserConfig.getActivatedAccounts()) {
