@@ -171,7 +171,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         TextView heading = label(getParentActivity(), "选择群组", 17,
                 Theme.key_windowBackgroundWhiteBlackText, true);
         header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView selectAll = button(getParentActivity(), "全选", true);
+        TextView selectAll = button(getParentActivity(), "全选", false);
         header.addView(selectAll, LayoutHelper.createLinear(76, 36));
 
         EditText search = new EditText(getParentActivity());
@@ -211,7 +211,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 row.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(9),
                         AndroidUtilities.dp(12), AndroidUtilities.dp(9));
                 int background = selected
-                        ? getThemedColor(Theme.key_featuredStickers_addButton)
+                        ? getThemedColor(Theme.key_windowBackgroundBlueText)
                         : getThemedColor(Theme.key_windowBackgroundGray);
                 row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), background));
                 TextView nameView = label(getParentActivity(), (selected ? "✓  " : "") + name, 14,
@@ -357,7 +357,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
             ProgressBar progress = new ProgressBar(getParentActivity(), null, android.R.attr.progressBarStyleHorizontal);
             progress.setMax(Math.max(1, task.total));
             progress.setProgress(task.processed);
-            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_featuredStickers_addButton)));
+            progress.setProgressTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundBlueText)));
             progress.setProgressBackgroundTintList(ColorStateList.valueOf(getThemedColor(Theme.key_windowBackgroundGray)));
             item.addView(progress, LayoutHelper.createLinear(-1, 6, 0, 8, 0, 0));
             TextView preview = label(getParentActivity(), task.message, 13, Theme.key_windowBackgroundWhiteGrayText, false);
@@ -399,7 +399,9 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                     + "   ·   " + stateName(task.state) + "   ·   查看全部", 13,
                     Theme.key_windowBackgroundWhiteBlueText, true);
             logs.setOnClickListener(v -> showTaskDetails(task));
-            item.addView(logs, LayoutHelper.createLinear(-1, 42, 0, 7, 0, 0));
+            logs.setMinHeight(AndroidUtilities.dp(54));
+            logs.setGravity(Gravity.CENTER_VERTICAL);
+            item.addView(logs, LayoutHelper.createLinear(-1, 54, 0, 7, 0, 0));
         }
     }
 
@@ -416,11 +418,25 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         ScrollView scroll = new ScrollView(getParentActivity());
         LinearLayout rows = new LinearLayout(getParentActivity());
         rows.setOrientation(LinearLayout.VERTICAL);
-        String details = task.logs.isEmpty() ? "暂无发送记录" : android.text.TextUtils.join("\n\n", task.logs);
-        TextView logText = label(getParentActivity(), details, 13,
-                Theme.key_windowBackgroundWhiteGrayText, false);
-        logText.setTextIsSelectable(true);
-        rows.addView(logText, LayoutHelper.createLinear(-1, -2));
+        if (task.logs.isEmpty()) {
+            rows.addView(label(getParentActivity(), "暂无发送记录", 13,
+                    Theme.key_windowBackgroundWhiteGrayText, false), LayoutHelper.createLinear(-1, -2));
+        } else {
+            for (String entry : task.logs) {
+                boolean success = entry.contains("发送成功");
+                boolean failed = entry.contains("失败") || entry.contains("调用异常");
+                TextView logRow = label(getParentActivity(), entry, 13,
+                        success ? Theme.key_windowBackgroundGreenText
+                                : failed ? Theme.key_text_RedRegular : Theme.key_windowBackgroundWhiteBlackText,
+                        false);
+                logRow.setTextIsSelectable(true);
+                logRow.setPadding(AndroidUtilities.dp(10), AndroidUtilities.dp(9),
+                        AndroidUtilities.dp(10), AndroidUtilities.dp(9));
+                logRow.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(8),
+                        getThemedColor(Theme.key_windowBackgroundGray)));
+                rows.addView(logRow, LayoutHelper.createLinear(-1, -2, 0, 0, 0, 6));
+            }
+        }
         scroll.addView(rows, new ScrollView.LayoutParams(-1, -2));
         content.addView(scroll, LayoutHelper.createLinear(-1, 420, 0, 12, 0, 0));
         AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider)
