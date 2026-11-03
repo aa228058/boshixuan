@@ -450,7 +450,8 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
         for (CrossAccountInboxStore.Entry reply : replies) {
             if (reply.handled || !matchesReplyFilters(reply)) continue;
             String accountLabel = "账号 " + (reply.account + 1);
-            String title = TextUtils.isEmpty(reply.groupTitle) ? "群组消息" : reply.groupTitle;
+            String title = TextUtils.isEmpty(reply.groupTitle)
+                    ? (reply.dialogId < 0 ? "群组消息" : "私聊消息") : reply.groupTitle;
             String typeLabel = reply.messageType == 2 ? "媒体消息" : "文字消息";
             String sourceLabel = reply.dialogId < 0 ? "群组回复" : "私聊消息";
             String detail = accountLabel + " · " + sourceLabel + " · " + typeLabel
