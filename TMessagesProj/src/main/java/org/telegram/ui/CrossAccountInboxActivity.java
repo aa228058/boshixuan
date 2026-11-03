@@ -150,6 +150,13 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
                 // A right swipe clears this hit from the active inbox until a new
                 // message independently matches the saved filters.
+                if (direction == ItemTouchHelper.RIGHT) {
+                    // Mark the source dialog read through this reply before removing
+                    // the matching item from the unified inbox.
+                    MessagesController.getInstance(reply.account).markDialogAsRead(
+                            reply.dialogId, reply.messageId, reply.messageId, reply.date,
+                            false, 0, 0, true, 0);
+                }
                 CrossAccountInboxStore.setHandled(reply.account, reply.ownerId, reply.dialogId,
                         reply.messageId, direction == ItemTouchHelper.RIGHT);
             }
