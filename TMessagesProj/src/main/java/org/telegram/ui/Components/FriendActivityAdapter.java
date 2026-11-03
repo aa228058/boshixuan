@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
@@ -31,7 +32,9 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
     private final ArrayList<TLRPC.Message> messages = new ArrayList<>();
     private final ArrayList<GroupItem> groups = new ArrayList<>();
     private final ArrayList<RowItem> rows = new ArrayList<>();
-    private final HashSet<Long> collapsedGroups = new HashSet<>();
+    private final HashMap<Long, Integer> visibleCounts = new HashMap<>();
+    private static final int DEFAULT_GROUP_VISIBLE_COUNT = 5;
+    private static final int GROUP_LOAD_STEP = 10;
     private final BaseFragment fragment;
     private final java.text.SimpleDateFormat activityTimeFormat =
             new java.text.SimpleDateFormat("HH:mm", Locale.getDefault());
@@ -42,6 +45,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     private static final int VIEW_TYPE_GROUP = 0;
     private static final int VIEW_TYPE_MESSAGE = 1;
+    private static final int VIEW_TYPE_MORE = 2;
 
     private static class GroupItem {
         final long dialogId;
@@ -115,7 +119,8 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         // Remove stale expansion state without disturbing groups that remain visible.
         HashSet<Long> existing = new HashSet<>();
         for (GroupItem group : groups) existing.add(group.dialogId);
-        collapsedGroups.retainAll(existing);
+        visibleCounts.keySet().retainAll(existing);
+        for (GroupItem group : groups) visibleCounts.putIfAbsent(group.dialogId, DEFAULT_GROUP_VISIBLE_COUNT);
 
         rebuildRows();
     }
@@ -154,7 +159,8 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     @Override
     public int getItemViewType(int position) {
-        return rows.get(position).isGroupHeader() ? VIEW_TYPE_GROUP : VIEW_TYPE_MESSAGE;
+        RowItem item = rows.get(position);
+        return item.isGroupHeader() ? VIEW_TYPE_GROUP : item.isLoadMore() ? VIEW_TYPE_MORE : VIEW_TYPE_MESSAGE;
     }
 
     @Override
@@ -179,6 +185,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         container.removeAllViews();
         View rowView = item.isGroupHeader()
                 ? createGroupHeader(item.group, container.getContext())
+                : item.isLoadMore() ? createLoadMoreRow(item.group, container.getContext())
                 : createMessageRow(container.getContext(), item.message);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -278,7 +285,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         row.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(10), Theme.getColor(Theme.key_windowBackgroundWhite)));
 
         BackupImageView senderAvatar = new BackupImageView(context);
-        senderAvatar.setRoundRadius(AndroidUtilities.dp(16));
+        senderAvatar.setRoundRadius(AndroidUtilities.dp(21));
         TLRPC.User sender = null;
         if (message.from_id instanceof TLRPC.TL_peerUser) {
             sender = MessagesController.getInstance(currentAccount).getUser(message.from_id.user_id);
@@ -290,7 +297,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
             ImageLocation location = ImageLocation.getForUser(sender, ImageLocation.TYPE_SMALL);
             if (location != null) senderAvatar.setImage(location, "32_32", senderDrawable, sender);
         }
-        row.addView(senderAvatar, LayoutHelper.createLinear(32, 32));
+        row.addView(senderAvatar, LayoutHelper.createLinear(42, 42));
 
         MessageObject messageObject = new MessageObject(currentAccount, message, false, false);
         CharSequence preview = messageObject.messageText;
