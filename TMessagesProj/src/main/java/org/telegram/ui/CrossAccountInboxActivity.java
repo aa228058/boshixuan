@@ -126,8 +126,14 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                                     @NonNull RecyclerView.ViewHolder viewHolder) {
                 if (viewHolder.getAdapterPosition() == RecyclerView.NO_POSITION) return 0;
                 UItem item = listView.adapter.getItem(viewHolder.getAdapterPosition());
-                return item != null && item.id == ITEM_REPLY_ROW
-                        ? super.getSwipeDirs(recyclerView, viewHolder) : 0;
+                if (item == null || item.id != ITEM_REPLY_ROW
+                        || !(item.object instanceof CrossAccountInboxStore.Entry)) {
+                    return 0;
+                }
+                CrossAccountInboxStore.Entry reply = (CrossAccountInboxStore.Entry) item.object;
+                // Pending rows swipe left to mark handled; handled rows swipe
+                // right to restore them to the pending inbox.
+                return reply.handled ? ItemTouchHelper.RIGHT : ItemTouchHelper.LEFT;
             }
 
             @Override
@@ -446,9 +452,17 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
                 "筛选设置 · " + getReplyFilterSummary()));
 
         ArrayList<CrossAccountInboxStore.Entry> replies = CrossAccountInboxStore.getAllEntries();
+        int handledCount = 0;
+        for (CrossAccountInboxStore.Entry reply : replies) {
+            if (reply.handled && matchesReplyFilters(reply)) handledCount++;
+        }
+        if (handledCount > 0) {
+            items.add(UItem.asButton(ITEM_SHOW_HANDLED, R.drawable.msg_retry,
+                    (showHandledReplies ? "隐藏" : "显示") + "已处理消息（" + handledCount + "）"));
+        }
         int shownReplies = 0;
         for (CrossAccountInboxStore.Entry reply : replies) {
-            if (reply.handled || !matchesReplyFilters(reply)) continue;
+            if (reply.handled != showHandledReplies || !matchesReplyFilters(reply)) continue;
             String accountLabel = "账号 " + (reply.account + 1);
             String title = TextUtils.isEmpty(reply.groupTitle)
                     ? (reply.dialogId < 0 ? "群组消息" : "私聊消息") : reply.groupTitle;
