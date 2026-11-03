@@ -6763,6 +6763,9 @@ public class MediaDataController extends BaseController {
                     for (int b = 0; b < arrayList.size(); b++) {
                         MessageObject m = arrayList.get(b);
                         m.replyMessageObject = messageObject;
+                        // The first inbox pass can run before this asynchronous reply target
+                        // is available. Retry now that Telegram has resolved the exact target.
+                        CrossAccountInboxStore.recordReply(currentAccount, m.getDialogId(), m);
                         m.applyTimestampsHighlightForReplyMsg();
                         if (m.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage) {
                             m.generatePinMessageText(null, null);
