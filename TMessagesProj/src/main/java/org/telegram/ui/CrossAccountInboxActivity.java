@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 
 /** A live view over account-owned dialog caches. No messages are copied between accounts. */
 public class CrossAccountInboxActivity extends BaseFragment implements MainTabsActivity.TabFragmentDelegate,
@@ -460,23 +461,46 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             items.add(UItem.asButton(ITEM_SHOW_HANDLED, R.drawable.msg_retry,
                     (showHandledReplies ? "隐藏" : "显示") + "已处理消息（" + handledCount + "）"));
         }
-        int shownReplies = 0;
+
+        // getAllEntries() is globally sorted newest-first. LinkedHashMap keeps
+        // each dialog in the order of its newest message while grouping every
+        // account/dialog pair together (same-named groups in different accounts
+        // must never be merged).
+        LinkedHashMap<String, ArrayList<CrossAccountInboxStore.Entry>> groupedReplies = new LinkedHashMap<>();
         for (CrossAccountInboxStore.Entry reply : replies) {
             if (reply.handled != showHandledReplies || !matchesReplyFilters(reply)) continue;
-            String accountLabel = "账号 " + (reply.account + 1);
-            String title = TextUtils.isEmpty(reply.groupTitle)
-                    ? (reply.dialogId < 0 ? "群组消息" : "私聊消息") : reply.groupTitle;
-            String typeLabel = reply.messageType == 2 ? "媒体消息" : "文字消息";
-            String sourceLabel = reply.dialogId < 0 ? "群组回复" : "私聊消息";
-            String detail = accountLabel + " · " + sourceLabel + " · " + typeLabel
-                    + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
-                    + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
-                    + "\n" + reply.preview;
-            UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
-            row.subtext = detail;
-            row.object = reply;
-            items.add(row);
-            shownReplies++;
+            String groupKey = reply.account + ":" + reply.ownerId + ":" + reply.dialogId;
+            ArrayList<CrossAccountInboxStore.Entry> group = groupedReplies.get(groupKey);
+            if (group == null) {
+                group = new ArrayList<>();
+                groupedReplies.put(groupKey, group);
+            }
+            group.add(reply);
+        }
+
+        int shownReplies = 0;
+        for (ArrayList<CrossAccountInboxStore.Entry> group : groupedReplies.values()) {
+            if (group.isEmpty()) continue;
+            CrossAccountInboxStore.Entry first = group.get(0);
+            String groupTitle = TextUtils.isEmpty(first.groupTitle)
+                    ? (first.dialogId < 0 ? "群组消息" : "私聊消息") : first.groupTitle;
+            String accountLabel = "账号 " + (first.account + 1);
+            items.add(UItem.asHeader(groupTitle + " · " + accountLabel));
+
+            // Entries within each group retain the store's date-descending order.
+            for (CrossAccountInboxStore.Entry reply : group) {
+                String typeLabel = reply.messageType == 2 ? "媒体" : "文字";
+                String senderLabel = TextUtils.isEmpty(reply.senderName) ? "新消息" : reply.senderName;
+                String timeLabel = reply.date > 0 ? LocaleController.formatDateChat(reply.date) : "";
+                String detail = senderLabel + " · " + typeLabel
+                        + (TextUtils.isEmpty(timeLabel) ? "" : " · " + timeLabel)
+                        + "\\n" + reply.preview;
+                UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, senderLabel);
+                row.subtext = detail;
+                row.object = reply;
+                items.add(row);
+                shownReplies++;
+            }
         }
         if (shownReplies == 0) {
             items.add(UItem.asShadow("当前筛选条件下没有符合条件的消息"));
