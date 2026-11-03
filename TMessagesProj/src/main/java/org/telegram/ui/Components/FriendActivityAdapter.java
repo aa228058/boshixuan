@@ -299,7 +299,9 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         BackupImageView senderAvatar = new BackupImageView(context);
         senderAvatar.setRoundRadius(AndroidUtilities.dp(21));
         TLRPC.User sender = null;
-        if (message.from_id instanceof TLRPC.TL_peerUser) {
+        // Resolve the sender by peer id instead of checking one generated peer
+        // subclass: Telegram layer variants can represent the same user peer.
+        if (message.from_id != null && message.from_id.user_id != 0) {
             sender = MessagesController.getInstance(currentAccount).getUser(message.from_id.user_id);
         }
         AvatarDrawable senderDrawable = new AvatarDrawable();
@@ -307,7 +309,7 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
         senderAvatar.setImageDrawable(senderDrawable);
         if (sender != null && sender.photo != null) {
             ImageLocation location = ImageLocation.getForUser(sender, ImageLocation.TYPE_SMALL);
-            if (location != null) senderAvatar.setImage(location, "32_32", senderDrawable, sender);
+            if (location != null) senderAvatar.setImage(location, "50_50", senderDrawable, sender);
         }
         row.addView(senderAvatar, LayoutHelper.createLinear(42, 42));
 
