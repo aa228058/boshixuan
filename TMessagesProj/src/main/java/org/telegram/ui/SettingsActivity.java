@@ -148,6 +148,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     private static final int MENU_LOGOUT = 2;
     private static final int MENU_CLEAR_CACHE = 3;
     private static final int MENU_ACCOUNT_CANCELLATION_BOT = 4;
+    private static final int MENU_GROUP_BROADCAST = 5;
 
     private final BoolAnimator animatorSearchPageVisible = new BoolAnimator(ANIMATOR_ID_SEARCH_PAGE_VISIBLE,
             this, CubicBezierInterpolator.EASE_OUT_QUINT, 350);
@@ -300,6 +301,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     presentFragment(new CacheControlActivity());
                 } else if (id == MENU_ACCOUNT_CANCELLATION_BOT) {
                     getMessagesController().openByUserName("MGKHDbot", SettingsActivity.this, 1);
+                } else if (id == MENU_GROUP_BROADCAST) {
+                    presentFragment(new MangoGroupBroadcastActivity());
                 }
             }
         });
@@ -337,6 +340,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         otherItem.addSubItem(MENU_CLEAR_CACHE, R.drawable.msg_clearcache, getString(R.string.ClearCache));
         otherItem.addSubItem(MENU_LOGOUT, R.drawable.msg_leave, getString(R.string.LogOut));
         otherItem.addSubItem(MENU_ACCOUNT_CANCELLATION_BOT, R.drawable.msg_delete, getString(R.string.AccountCancellationBot));
+        otherItem.addSubItem(MENU_GROUP_BROADCAST, R.drawable.msg_send, "群组群发与任务管理");
 
         search = new ProfileActivity.SearchAdapter(this, context) {
             @Override
