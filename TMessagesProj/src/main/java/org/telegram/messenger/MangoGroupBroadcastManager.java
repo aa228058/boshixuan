@@ -16,6 +16,7 @@ public final class MangoGroupBroadcastManager {
         ErrorObserver observer = new ErrorObserver(account);
         ERROR_OBSERVERS.put(account, observer);
         NotificationCenter.getInstance(account).addObserver(observer, NotificationCenter.messageSendError);
+        NotificationCenter.getInstance(account).addObserver(observer, NotificationCenter.messageReceivedByServer);
     }
 
     /** Suppress generic send-error dialogs briefly while broadcast requests are in flight. */
@@ -33,12 +34,14 @@ public final class MangoGroupBroadcastManager {
         ErrorObserver(int account) { this.account = account; }
         @Override
         public void didReceivedNotification(int id, int notificationAccount, Object... args) {
-            if (id != NotificationCenter.messageSendError || args == null || args.length == 0
-                    || !(args[0] instanceof Integer)) return;
+            if (args == null || args.length == 0 || !(args[0] instanceof Integer)) return;
             long dialogId = SendMessagesHelper.getInstance(account)
                     .getSendingMessageDialogId((Integer) args[0]);
-            if (dialogId != 0) {
+            if (dialogId == 0) return;
+            if (id == NotificationCenter.messageSendError) {
                 MangoGroupBroadcastTaskStore.markSendFailure(account, dialogId, "Telegram 拒绝发送");
+            } else if (id == NotificationCenter.messageReceivedByServer) {
+                MangoGroupBroadcastTaskStore.markSendSuccess(account, dialogId);
             }
         }
     }
