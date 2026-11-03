@@ -166,7 +166,10 @@ public class FriendActivityAdapter extends RecyclerListView.SelectionAdapter {
 
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return new RecyclerListView.Holder(new FrameLayout(parent.getContext()));
+        FrameLayout container = new FrameLayout(parent.getContext());
+        container.setLayoutParams(new RecyclerView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return new RecyclerListView.Holder(container);
     }
 
     @Override
