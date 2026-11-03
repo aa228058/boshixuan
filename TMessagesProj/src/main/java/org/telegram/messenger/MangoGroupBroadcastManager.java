@@ -51,9 +51,18 @@ public final class MangoGroupBroadcastManager {
         public void didReceivedNotification(int id, int notificationAccount, Object... args) {
             if (args == null || args.length == 0 || !(args[0] instanceof Integer)) return;
             long dialogId;
-            if (id == NotificationCenter.messageReceivedByServer && args.length > 4
-                    && args[4] instanceof Long) {
-                dialogId = (Long) args[4];
+            if (id == NotificationCenter.messageReceivedByServer && args.length > 3) {
+                // Telegram has two server-ack payload variants: some pass a
+                // numeric dialog id at index 3, others pass a TLRPC.Peer there.
+                Object peerOrDialog = args[3];
+                if (peerOrDialog instanceof Long) {
+                    dialogId = (Long) peerOrDialog;
+                } else if (peerOrDialog instanceof TLRPC.Peer) {
+                    dialogId = DialogObject.getPeerDialogId((TLRPC.Peer) peerOrDialog);
+                } else {
+                    dialogId = SendMessagesHelper.getInstance(account)
+                            .getSendingMessageDialogId((Integer) args[0]);
+                }
             } else {
                 dialogId = SendMessagesHelper.getInstance(account)
                         .getSendingMessageDialogId((Integer) args[0]);
