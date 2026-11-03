@@ -140,6 +140,14 @@ public final class MangoGroupBroadcastTaskStore {
             for (int i = 0; i < tasks.size(); i++) {
                 Task old = tasks.get(i);
                 if (old.id != taskId) continue;
+                // Terminal tasks must never be resurrected by a stale pause/resume
+                // action arriving after completion or cancellation.
+                if (old.state == COMPLETED || old.state == CANCELLED) return;
+                if (state != SENDING && state != PAUSED && state != INTERRUPTED
+                        && state != CANCELLED) return;
+                // A task cannot be marked as running after every target has already
+                // been processed, even if an old UI action is still in flight.
+                if (state == SENDING && old.processed >= old.total) return;
                 tasks.set(i, new Task(old.id, old.createdAt, old.message, old.total, old.processed,
                         old.queued, old.failed, state, old.targetNames, old.targetIds, old.logs, old.minSeconds, old.maxSeconds));
                 if (state == SENDING) activeTasks.add(activeKey(account, taskId));
