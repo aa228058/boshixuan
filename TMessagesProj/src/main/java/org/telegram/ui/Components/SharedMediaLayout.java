@@ -11992,6 +11992,7 @@ if (!isStoriesView()) {
         }
     }
     private android.widget.FrameLayout mActivityOverlay;
+    private android.widget.FrameLayout mActivityCardContainer;
     private RecyclerListView mActivityListView;
 private int mActivityRequestGeneration;
 private boolean mActivityLoadStarted;
@@ -12012,7 +12013,19 @@ private void showRealActivityPage(boolean display) {
 
     if (mActivityOverlay == null) {
         mActivityOverlay = new android.widget.FrameLayout(getContext());
-        mActivityOverlay.setBackgroundColor(org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray));
+        // Keep the area outside the card transparent and non-interactive so
+        // profile-level horizontal swipes remain handled by the original TG page.
+        mActivityOverlay.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        mActivityCardContainer = new android.widget.FrameLayout(getContext());
+        mActivityCardContainer.setBackground(org.telegram.ui.ActionBar.Theme.createRoundRectDrawable(
+                org.telegram.messenger.AndroidUtilities.dp(16),
+                org.telegram.ui.ActionBar.Theme.getColor(org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhite)));
+        mActivityCardContainer.setClipToOutline(true);
+        mActivityCardContainer.addView(mActivityCardContainer,
+                org.telegram.ui.Components.LayoutHelper.createFrame(
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
+                        android.view.Gravity.TOP, 12, 8, 12, 8));
     }
     // Attach to the stable SharedMediaLayout instead of mediaPages[0].
     // The two MediaPage instances are swapped after tab animations; attaching
@@ -12036,10 +12049,10 @@ private void showRealActivityPage(boolean display) {
     }
     mActivityLoadStarted = true;
     final int requestGeneration = ++mActivityRequestGeneration;
-    mActivityOverlay.removeAllViews();
+    mActivityCardContainer.removeAllViews();
 
     android.widget.ProgressBar progressBar = new android.widget.ProgressBar(getContext());
-    mActivityOverlay.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
+    mActivityCardContainer.addView(progressBar, org.telegram.ui.Components.LayoutHelper.createFrame(48, 48, android.view.Gravity.CENTER));
 
     final int currentAccount = profileActivity.getCurrentAccount();
     // Bind this request to the profile identity that started it. A reused layout
@@ -12059,7 +12072,7 @@ private void showRealActivityPage(boolean display) {
             hasMoreHolder[0] = hasMore;
 
             if (listHolder[0] == null) {
-                mActivityOverlay.removeAllViews();
+                mActivityCardContainer.removeAllViews();
                 if ((messages == null || messages.isEmpty()) && !hasMore) {
                     android.widget.TextView emptyState = new android.widget.TextView(getContext());
                     emptyState.setText("近期没有发言");
@@ -12067,7 +12080,7 @@ private void showRealActivityPage(boolean display) {
                     emptyState.setTextSize(14);
                     emptyState.setTextColor(org.telegram.ui.ActionBar.Theme.getColor(
                             org.telegram.ui.ActionBar.Theme.key_windowBackgroundWhiteGrayText));
-                    mActivityOverlay.addView(emptyState,
+                    mActivityCardContainer.addView(emptyState,
                             org.telegram.ui.Components.LayoutHelper.createFrame(
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
@@ -12078,7 +12091,7 @@ private void showRealActivityPage(boolean display) {
                     // A retry can return another empty partial page while more
                     // common groups are still being scanned. Replace the previous
                     // prompt instead of stacking duplicate full-screen views.
-                    mActivityOverlay.removeAllViews();
+                    mActivityCardContainer.removeAllViews();
                     android.widget.TextView loadingMoreState = new android.widget.TextView(getContext());
                     loadingMoreState.setText("暂时没有匹配消息，点击此处继续加载");
                     loadingMoreState.setGravity(android.view.Gravity.CENTER);
@@ -12091,7 +12104,7 @@ private void showRealActivityPage(boolean display) {
                             pageHolder[0].loadMore();
                         }
                     });
-                    mActivityOverlay.addView(loadingMoreState,
+                    mActivityCardContainer.addView(loadingMoreState,
                             org.telegram.ui.Components.LayoutHelper.createFrame(
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                                     org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
@@ -12137,10 +12150,10 @@ private void showRealActivityPage(boolean display) {
                 // horizontal tab-swipe interception and avoids competing listeners.
                 listHolder[0] = listView;
                 mActivityListView = listView;
-                mActivityOverlay.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
+                mActivityCardContainer.addView(listView, org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
-                mActivityOverlay.addView(emptyViewHolder[0], org.telegram.ui.Components.LayoutHelper.createFrame(
+                mActivityCardContainer.addView(emptyViewHolder[0], org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT));
             } else if (adapterHolder[0] != null) {
@@ -12187,7 +12200,7 @@ private void showRealActivityPage(boolean display) {
                     && mActivityOverlay != null && getContext() != null) {
                 mActivityLoadStarted = false;
                 mActivityListView = null;
-                mActivityOverlay.removeAllViews();
+                mActivityCardContainer.removeAllViews();
                 android.widget.TextView tv = new android.widget.TextView(getContext());
                 tv.setText("活动加载失败\n" + error + "\n点击此处重试");
                 tv.setGravity(android.view.Gravity.CENTER);
@@ -12200,7 +12213,7 @@ private void showRealActivityPage(boolean display) {
                     mActivityLoadStarted = false;
                     showRealActivityPage(true);
                 });
-                mActivityOverlay.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(
+                mActivityCardContainer.addView(tv, org.telegram.ui.Components.LayoutHelper.createFrame(
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT,
                         org.telegram.ui.Components.LayoutHelper.MATCH_PARENT, android.view.Gravity.CENTER));
             }
