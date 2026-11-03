@@ -10,7 +10,7 @@ public final class MangoGroupBroadcastManager {
     private static final HashMap<String, Runner> RUNNERS = new HashMap<>();
     private static final HashMap<Integer, ErrorObserver> ERROR_OBSERVERS = new HashMap<>();
     // Track acknowledgements per target, avoiding an account-wide cooldown.
-    private static final HashMap<Integer, HashMap<Long, Long>> PENDING_BROADCAST_SENDS = new HashMap<>();
+    private static final HashMap<Integer, HashMap<Long, ArrayList<Long>>> PENDING_BROADCAST_SENDS = new HashMap<>();
     private static final long PENDING_SEND_TIMEOUT = 120000L;
 
     private static void observeSendErrors(int account) {
@@ -28,10 +28,14 @@ public final class MangoGroupBroadcastManager {
             if (key.startsWith(prefix)) return true;
         }
         synchronized (PENDING_BROADCAST_SENDS) {
-            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            HashMap<Long, ArrayList<Long>> pending = PENDING_BROADCAST_SENDS.get(account);
             if (pending == null) return false;
             long now = System.currentTimeMillis();
-            pending.entrySet().removeIf(entry -> now - entry.getValue() >= PENDING_SEND_TIMEOUT);
+            for (java.util.Iterator<java.util.Map.Entry<Long, ArrayList<Long>>> iterator = pending.entrySet().iterator(); iterator.hasNext();) {
+                java.util.Map.Entry<Long, ArrayList<Long>> entry = iterator.next();
+                entry.getValue().removeIf(timestamp -> now - timestamp >= PENDING_SEND_TIMEOUT);
+                if (entry.getValue().isEmpty()) iterator.remove();
+            }
             if (pending.isEmpty()) {
                 PENDING_BROADCAST_SENDS.remove(account);
                 return false;
@@ -71,14 +75,23 @@ public final class MangoGroupBroadcastManager {
                 pending = new HashMap<>();
                 PENDING_BROADCAST_SENDS.put(account, pending);
             }
-            pending.put(dialogId, System.currentTimeMillis());
+            ArrayList<Long> timestamps = pending.get(dialogId);
+            if (timestamps == null) {
+                timestamps = new ArrayList<>();
+                pending.put(dialogId, timestamps);
+            }
+            timestamps.add(System.currentTimeMillis());
         }
     }
 
     private static boolean consumePendingSend(int account, long dialogId) {
         synchronized (PENDING_BROADCAST_SENDS) {
             HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
-            if (pending == null || pending.remove(dialogId) == null) return false;
+            if (pending == null) return false;
+            ArrayList<Long> timestamps = pending.get(dialogId);
+            if (timestamps == null || timestamps.isEmpty()) return false;
+            timestamps.remove(0);
+            if (timestamps.isEmpty()) pending.remove(dialogId);
             if (pending.isEmpty()) PENDING_BROADCAST_SENDS.remove(account);
             return true;
         }
