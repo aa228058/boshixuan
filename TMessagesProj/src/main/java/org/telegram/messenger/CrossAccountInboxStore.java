@@ -81,8 +81,8 @@ public final class CrossAccountInboxStore {
             return;
         }
         MessagesController controller = MessagesController.getInstance(account);
-        TLRPC.Chat chat = controller.getChat(-dialogId);
-        if (chat == null) {
+        TLRPC.Chat chat = dialogId < 0 ? controller.getChat(-dialogId) : null;
+        if (dialogId < 0 && chat == null) {
             return;
         }
 
@@ -107,10 +107,12 @@ public final class CrossAccountInboxStore {
 
         final long ownerId = config.getClientUserId();
         final int messageId = message.getId();
-        final int replyToMessageId = reply.reply_to_msg_id;
+        final int replyToMessageId = reply == null ? 0 : reply.reply_to_msg_id;
         final int messageType = message.messageOwner.media == null ? 1 : 2;
         final int date = message.messageOwner.date;
-        final String savedGroupTitle = chat.title == null ? "" : chat.title;
+        TLRPC.User privateUser = dialogId > 0 ? controller.getUser(dialogId) : null;
+        final String savedGroupTitle = chat != null ? (chat.title == null ? "" : chat.title)
+                : privateUser == null ? "私聊" : UserObject.getUserName(privateUser);
         final String savedSenderName = senderName;
         final String savedPreview = preview;
         storageQueue.postRunnable(() -> persistReply(account, ownerId, dialogId, messageId,
@@ -119,7 +121,7 @@ public final class CrossAccountInboxStore {
 
     /** Collect replies from a regular history page, allowing exact targets in the same page. */
     public static void recordRepliesFromHistory(int account, long dialogId, ArrayList<MessageObject> messages) {
-        if (messages == null || messages.isEmpty() || dialogId >= 0) {
+        if (messages == null || messages.isEmpty() || dialogId == 0) {
             return;
         }
         for (int i = 0; i < messages.size(); i++) {
