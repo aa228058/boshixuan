@@ -9,7 +9,9 @@ import java.util.HashMap;
 public final class MangoGroupBroadcastManager {
     private static final HashMap<String, Runner> RUNNERS = new HashMap<>();
     private static final HashMap<Integer, ErrorObserver> ERROR_OBSERVERS = new HashMap<>();
-    private static final HashMap<Integer, Long> RECENT_BROADCAST_SENDS = new HashMap<>();
+    // Track acknowledgements per target, avoiding an account-wide cooldown.
+    private static final HashMap<Integer, HashMap<Long, Long>> PENDING_BROADCAST_SENDS = new HashMap<>();
+    private static final long PENDING_SEND_TIMEOUT = 120000L;
 
     private static void observeSendErrors(int account) {
         if (ERROR_OBSERVERS.containsKey(account)) return;
@@ -25,8 +27,17 @@ public final class MangoGroupBroadcastManager {
         for (String key : RUNNERS.keySet()) {
             if (key.startsWith(prefix)) return true;
         }
-        Long lastSend = RECENT_BROADCAST_SENDS.get(account);
-        return lastSend != null && System.currentTimeMillis() - lastSend < 120000L;
+        synchronized (PENDING_BROADCAST_SENDS) {
+            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            if (pending == null) return false;
+            long now = System.currentTimeMillis();
+            pending.entrySet().removeIf(entry -> now - entry.getValue() >= PENDING_SEND_TIMEOUT);
+            if (pending.isEmpty()) {
+                PENDING_BROADCAST_SENDS.remove(account);
+                return false;
+            }
+            return true;
+        }
     }
 
     private static final class ErrorObserver implements NotificationCenter.NotificationCenterDelegate {
@@ -35,14 +46,41 @@ public final class MangoGroupBroadcastManager {
         @Override
         public void didReceivedNotification(int id, int notificationAccount, Object... args) {
             if (args == null || args.length == 0 || !(args[0] instanceof Integer)) return;
-            long dialogId = SendMessagesHelper.getInstance(account)
-                    .getSendingMessageDialogId((Integer) args[0]);
-            if (dialogId == 0) return;
+            long dialogId;
+            if (id == NotificationCenter.messageReceivedByServer && args.length > 4
+                    && args[4] instanceof Long) {
+                dialogId = (Long) args[4];
+            } else {
+                dialogId = SendMessagesHelper.getInstance(account)
+                        .getSendingMessageDialogId((Integer) args[0]);
+            }
+            if (dialogId == 0 || !consumePendingSend(account, dialogId)) return;
             if (id == NotificationCenter.messageSendError) {
                 MangoGroupBroadcastTaskStore.markSendFailure(account, dialogId, "Telegram 拒绝发送");
             } else if (id == NotificationCenter.messageReceivedByServer) {
                 MangoGroupBroadcastTaskStore.markSendSuccess(account, dialogId);
             }
+        }
+    }
+
+
+    private static void addPendingSend(int account, long dialogId) {
+        synchronized (PENDING_BROADCAST_SENDS) {
+            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            if (pending == null) {
+                pending = new HashMap<>();
+                PENDING_BROADCAST_SENDS.put(account, pending);
+            }
+            pending.put(dialogId, System.currentTimeMillis());
+        }
+    }
+
+    private static boolean consumePendingSend(int account, long dialogId) {
+        synchronized (PENDING_BROADCAST_SENDS) {
+            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            if (pending == null || pending.remove(dialogId) == null) return false;
+            if (pending.isEmpty()) PENDING_BROADCAST_SENDS.remove(account);
+            return true;
         }
     }
 
@@ -141,11 +179,12 @@ public final class MangoGroupBroadcastManager {
                 }
                 long dialogId = current.targetIds.get(index);
                 try {
-                    RECENT_BROADCAST_SENDS.put(account, System.currentTimeMillis());
+                    addPendingSend(account, dialogId);
                     SendMessagesHelper.getInstance(account).sendMessage(SendMessagesHelper.SendMessageParams.of(
                             current.message, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false));
                     MangoGroupBroadcastTaskStore.markResult(account, taskId, dialogId, true, null);
                 } catch (Throwable error) {
+                    consumePendingSend(account, dialogId);
                     FileLog.e(error);
                     MangoGroupBroadcastTaskStore.markResult(account, taskId, dialogId, false,
                             error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage());
