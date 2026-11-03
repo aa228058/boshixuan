@@ -36,6 +36,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
     private LinearLayout taskContainer;
     private final ArrayList<Long> selectedGroups = new ArrayList<>();
     private final ArrayList<String> selectedNames = new ArrayList<>();
+    private final HashSet<Long> expandedTaskLogs = new HashSet<>();
     private boolean resumed;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -299,9 +300,24 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                             renderTasks();
                         }).show());
             }
-            TextView logs = label(getParentActivity(), task.logs.isEmpty() ? "暂无发送日志" : android.text.TextUtils.join("\n", task.logs),
+            boolean expanded = expandedTaskLogs.contains(task.id);
+            int visibleLogCount = expanded ? task.logs.size() : Math.min(8, task.logs.size());
+            ArrayList<String> visibleLogs = new ArrayList<>();
+            for (int i = 0; i < visibleLogCount; i++) visibleLogs.add(task.logs.get(i));
+            String logText = task.logs.isEmpty() ? "暂无发送日志" : android.text.TextUtils.join("\n", visibleLogs);
+            if (task.logs.size() > 8) {
+                logText += expanded ? "\n收起日志" : "\n展开全部日志（共 " + task.logs.size() + " 条）";
+            }
+            TextView logs = label(getParentActivity(), logText,
                     12, Theme.key_windowBackgroundWhiteGrayText, false);
-            logs.setMaxLines(8);
+            logs.setMaxLines(expanded ? 110 : 9);
+            if (task.logs.size() > 8) {
+                logs.setOnClickListener(v -> {
+                    if (expandedTaskLogs.contains(task.id)) expandedTaskLogs.remove(task.id);
+                    else expandedTaskLogs.add(task.id);
+                    renderTasks();
+                });
+            }
             item.addView(logs, LayoutHelper.createLinear(-1, -2, 0, 7, 0, 0));
         }
     }
