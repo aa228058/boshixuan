@@ -299,7 +299,7 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
         final int min = Math.max(1, interval - 2);
         final int max = Math.max(min, interval + 2);
         final int delay = interval;
-        new AlertDialog.Builder(getParentActivity(), resourceProvider)
+        AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider)
                 .setTitle("确认群发")
                 .setMessage("将向 " + selectedGroups.size() + " 个群组发送以下内容：\n\n" + text
                         + "\n\n间隔约 " + delay + " 秒（随机浮动 2 秒）")
@@ -316,12 +316,14 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                         showMessage("群发任务已创建");
                     }
                 }).show();
+        roundDialog(dialog);
     }
 
     private void showMessage(String text) {
         if (getParentActivity() == null) return;
-        new AlertDialog.Builder(getParentActivity(), resourceProvider).setMessage(text)
+        AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider).setMessage(text)
                 .setPositiveButton(LocaleController.getString(R.string.OK), null).show();
+        roundDialog(dialog);
     }
 
     private String stateName(int state) {
@@ -378,13 +380,16 @@ public final class MangoGroupBroadcastActivity extends BaseFragment implements D
                 });
             }
             if (task.state != MangoGroupBroadcastTaskStore.COMPLETED && task.state != MangoGroupBroadcastTaskStore.CANCELLED) {
-                addAction(actions, "取消任务", () -> new AlertDialog.Builder(getParentActivity(), resourceProvider)
-                        .setMessage("确定取消这个群发任务吗？")
-                        .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
-                        .setPositiveButton("确认取消", (d, w) -> {
-                            MangoGroupBroadcastManager.cancel(currentAccount, task.id);
-                            renderTasks();
-                        }).show());
+                addAction(actions, "取消任务", () -> {
+                    AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourceProvider)
+                            .setMessage("确定取消这个群发任务吗？")
+                            .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
+                            .setPositiveButton("确认取消", (d, w) -> {
+                                MangoGroupBroadcastManager.cancel(currentAccount, task.id);
+                                renderTasks();
+                            }).show();
+                    roundDialog(dialog);
+                });
             }
             boolean expanded = expandedTaskLogs.contains(task.id);
             int visibleLogCount = expanded ? task.logs.size() : Math.min(8, task.logs.size());
