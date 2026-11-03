@@ -64,6 +64,44 @@ jobs:
             printf '%s\n' "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
           } >> gradle.properties
 
+      - name: Configure Telegram API credentials
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_HASH: ${{ secrets.APP_HASH }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${APP_ID:-}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::APP_ID secret is missing or is not a positive integer"
+            exit 1
+          fi
+          if ! [[ "${APP_HASH:-}" =~ ^[A-Fa-f0-9]{32}$ ]]; then
+            echo "::error::APP_HASH secret is missing or is not a 32-character hexadecimal API hash"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          path = Path("TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java")
+          source = path.read_text(encoding="utf-8")
+          source, id_count = re.subn(
+              r"public static int APP_ID = 0;",
+              "public static int APP_ID = " + os.environ["APP_ID"] + ";",
+              source,
+          )
+          source, hash_count = re.subn(
+              r'public static String APP_HASH = "";',
+              'public static String APP_HASH = "' + os.environ["APP_HASH"] + '";',
+              source,
+          )
+          if id_count != 1 or hash_count != 1:
+              raise SystemExit("Expected API credential placeholders were not found exactly once")
+          path.write_text(source, encoding="utf-8")
+          print("Telegram API credentials injected for this build (values hidden).")
+          PY
+
       - name: Build single universal Release APK
         run: |
           set -euo pipefail
