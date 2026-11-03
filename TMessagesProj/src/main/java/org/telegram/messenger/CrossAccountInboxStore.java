@@ -101,6 +101,11 @@ public final class CrossAccountInboxStore {
             preview = "";
         }
         preview = preview.replace('\n', ' ').trim();
+        // Media-only replies can have an empty textual body. Keep a meaningful
+        // native dialog preview instead of rendering only the sender's name.
+        if (TextUtils.isEmpty(preview) && !MessageObject.isMediaEmpty(message.messageOwner)) {
+            preview = "媒体消息";
+        }
         if (preview.length() > 500) {
             preview = preview.substring(0, 500);
         }
