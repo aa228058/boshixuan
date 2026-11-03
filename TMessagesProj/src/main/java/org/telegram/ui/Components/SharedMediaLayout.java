@@ -4240,6 +4240,10 @@ if (id != TAB_MANGO_ACTIVITY && mActivityOverlay != null) {
 
 if (id == TAB_MANGO_ACTIVITY) {
     showRealActivityPage();
+    hideFloatingDateView(true);
+    onSelectedTabChanged();
+    animateSearchToOptions(!isSearchItemVisible(id), true);
+    updateOptionsSearch(true);
     return;
 }
                 if (mediaPages[0].selectedType == id) {
@@ -4773,6 +4777,9 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     public boolean isSearchItemVisible(int type) {
+        if (type == TAB_MANGO_ACTIVITY) {
+            return false;
+        }
         if (type == TAB_GROUPUSERS) {
             return delegate.canSearchMembers();
         }
@@ -4797,10 +4804,16 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     public boolean isCalendarItemVisible() {
+        if (getSelectedTab() == TAB_MANGO_ACTIVITY) {
+            return false;
+        }
         return mediaPages[0].selectedType == TAB_PHOTOVIDEO || isAnyStoryPageType(mediaPages[0].selectedType) || mediaPages[0].selectedType == TAB_SAVED_DIALOGS;
     }
 
     public boolean isOptionsItemVisible() {
+        if (getSelectedTab() == TAB_MANGO_ACTIVITY) {
+            return false;
+        }
         final int type = mediaPages[0].selectedType;
         return type == TAB_PHOTOVIDEO || isAnyStoryPageType(type) || type == TAB_SAVED_DIALOGS || type == TAB_BOT_PREVIEWS || type == TAB_GIFTS && giftsContainer != null && giftsContainer.canFilter();
     }
