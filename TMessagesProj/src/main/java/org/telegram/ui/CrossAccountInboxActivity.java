@@ -455,7 +455,7 @@ public class CrossAccountInboxActivity extends BaseFragment implements MainTabsA
             String detail = accountLabel + " · " + typeLabel
                     + (TextUtils.isEmpty(reply.senderName) ? "" : " · " + reply.senderName)
                     + (reply.date > 0 ? " · " + LocaleController.formatDateChat(reply.date) : "")
-                    + "\\n" + reply.preview;
+                    + "\n" + reply.preview;
             UItem row = UItem.asButton(ITEM_REPLY_ROW, R.drawable.msg_retry, title);
             row.subtext = detail;
             row.object = reply;
