@@ -26,8 +26,10 @@ public class BuildVars {
     public static boolean NO_SCOPED_STORAGE = Build.VERSION.SDK_INT <= 29;
     public static String BUILD_VERSION_STRING = BuildConfig.BUILD_VERSION_STRING;
 
-    public static int APP_ID = 30382842;
-    public static String APP_HASH = "92b30c02a84ab9b66c352ee767b42020";
+    // Injected by the official GitHub Actions build from APP_ID / APP_HASH secrets.
+    // Keep empty in source so an unconfigured build cannot silently use Telegram defaults.
+    public static int APP_ID = 0;
+    public static String APP_HASH = "";
 
     // SafetyNet key for Google Identity SDK, set it to empty to disable
     public static String SAFETYNET_KEY = "YOUR_SAFETYNET_API_KEY";
