@@ -79,7 +79,7 @@ public final class MangoGroupBroadcastManager {
 
     private static void addPendingSend(int account, long dialogId) {
         synchronized (PENDING_BROADCAST_SENDS) {
-            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            HashMap<Long, ArrayList<Long>> pending = PENDING_BROADCAST_SENDS.get(account);
             if (pending == null) {
                 pending = new HashMap<>();
                 PENDING_BROADCAST_SENDS.put(account, pending);
@@ -95,7 +95,7 @@ public final class MangoGroupBroadcastManager {
 
     private static boolean consumePendingSend(int account, long dialogId) {
         synchronized (PENDING_BROADCAST_SENDS) {
-            HashMap<Long, Long> pending = PENDING_BROADCAST_SENDS.get(account);
+            HashMap<Long, ArrayList<Long>> pending = PENDING_BROADCAST_SENDS.get(account);
             if (pending == null) return false;
             ArrayList<Long> timestamps = pending.get(dialogId);
             if (timestamps == null || timestamps.isEmpty()) return false;
