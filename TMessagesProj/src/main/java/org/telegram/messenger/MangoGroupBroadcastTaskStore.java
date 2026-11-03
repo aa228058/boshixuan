@@ -108,8 +108,10 @@ public final class MangoGroupBroadcastTaskStore {
             for (int i = 0; i < tasks.size(); i++) {
                 Task old = tasks.get(i);
                 if (old.id != taskId) continue;
-                // Ignore late callbacks after a task has reached a terminal state.
-                if (old.state == COMPLETED || old.state == CANCELLED) return;
+                // A result is valid only while the task is actively sending.
+                // Ignore late callbacks after pause, interruption, completion or cancellation:
+                // they must not advance progress or append misleading task-log entries.
+                if (old.state != SENDING) return;
                 int processed = Math.min(old.total, old.processed + 1);
                 int queuedCount = old.queued + (queued ? 1 : 0);
                 int failedCount = old.failed + (queued ? 0 : 1);
