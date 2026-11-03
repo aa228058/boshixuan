@@ -5719,9 +5719,14 @@ if (id == TAB_MANGO_ACTIVITY) {
                 startedTrackingX = (int) ev.getX();
                 startedTrackingY = (int) ev.getY();
                 velocityTracker.clear();
-            } else if (ev != null && ev.getAction() == MotionEvent.ACTION_MOVE && ev.getPointerId(0) == startedTrackingPointerId) {
-                int dx = (int) (ev.getX() - startedTrackingX);
-                int dy = Math.abs((int) ev.getY() - startedTrackingY);
+            } else if (ev != null && ev.getAction() == MotionEvent.ACTION_MOVE) {
+                int pointerIndex = ev.findPointerIndex(startedTrackingPointerId);
+                if (pointerIndex < 0) {
+                    stopScroll(null);
+                    return false;
+                }
+                int dx = (int) (ev.getX(pointerIndex) - startedTrackingX);
+                int dy = Math.abs((int) ev.getY(pointerIndex) - startedTrackingY);
                 if (startedTracking && (animatingForward && dx > 0 || !animatingForward && dx < 0)) {
                     if (!prepareForMoving(ev, dx < 0)) {
                         maybeStartTracking = true;
@@ -5759,7 +5764,10 @@ if (id == TAB_MANGO_ACTIVITY) {
                     onTabProgress(getTabProgress());
                     onSelectedTabChanged();
                 }
-            } else if (ev == null || ev.getPointerId(0) == startedTrackingPointerId && (ev.getAction() == MotionEvent.ACTION_CANCEL || ev.getAction() == MotionEvent.ACTION_UP || ev.getAction() == MotionEvent.ACTION_POINTER_UP)) {
+            } else if (ev == null || ev.getAction() == MotionEvent.ACTION_CANCEL
+                    || ev.getAction() == MotionEvent.ACTION_UP
+                    || ev.getAction() == MotionEvent.ACTION_POINTER_UP
+                    && ev.getPointerId(ev.getActionIndex()) == startedTrackingPointerId) {
                 stopScroll(ev);
             }
             return startedTracking;
@@ -5782,8 +5790,8 @@ if (id == TAB_MANGO_ACTIVITY) {
         float velX;
         float velY;
         if (ev != null && ev.getAction() != MotionEvent.ACTION_CANCEL) {
-            velX = velocityTracker.getXVelocity();
-            velY = velocityTracker.getYVelocity();
+            velX = velocityTracker.getXVelocity(startedTrackingPointerId);
+            velY = velocityTracker.getYVelocity(startedTrackingPointerId);
             if (!startedTracking) {
                 if (Math.abs(velX) >= 3000 && Math.abs(velX) > Math.abs(velY)) {
                     prepareForMoving(ev, velX < 0);
