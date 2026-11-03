@@ -5641,6 +5641,28 @@ if (id == TAB_MANGO_ACTIVITY) {
     }
 
     @Override
+    public void requestDisallowInterceptTouchEvent(boolean disallowIntercept) {
+        /*
+         * RecyclerView normally asks its parent not to intercept as soon as a
+         * touch sequence starts. That prevents SharedMediaLayout from seeing
+         * horizontal drags on the Activity page, so the profile tabs cannot be
+         * swiped. Keep direction detection enabled only while this overlay is
+         * visible: onTouchEvent() starts tracking only when horizontal movement
+         * exceeds touch slop and is greater than vertical movement. Vertical
+         * gestures therefore remain owned by the Activity RecyclerView.
+         */
+        if (disallowIntercept
+                && getSelectedTab() == TAB_MANGO_ACTIVITY
+                && mActivityOverlay != null
+                && mActivityOverlay.getVisibility() == View.VISIBLE
+                && !startedTracking) {
+            super.requestDisallowInterceptTouchEvent(false);
+            return;
+        }
+        super.requestDisallowInterceptTouchEvent(disallowIntercept);
+    }
+
+    @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         return checkTabsAnimationInProgress() || scrollSlidingTextTabStrip.isAnimatingIndicator() || onTouchEvent(ev);
     }
