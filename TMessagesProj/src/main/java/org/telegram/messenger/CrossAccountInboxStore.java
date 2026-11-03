@@ -108,7 +108,7 @@ public final class CrossAccountInboxStore {
         final long ownerId = config.getClientUserId();
         final int messageId = message.getId();
         final int replyToMessageId = reply == null ? 0 : reply.reply_to_msg_id;
-        final int messageType = message.messageOwner.media == null ? 1 : 2;
+        final int messageType = MessageObject.isMediaEmpty(message.messageOwner) ? 1 : 2;
         // Apply the user's saved account/group/type scope before writing anything
         // to the unified-inbox store. The UI filter remains a defensive second check.
         if (!matchesSavedInboxFilters(account, ownerId, dialogId, messageType)) {
