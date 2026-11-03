@@ -8,6 +8,40 @@ import java.util.HashMap;
 /** Sequential, controllable scheduler for group broadcast tasks. */
 public final class MangoGroupBroadcastManager {
     private static final HashMap<String, Runner> RUNNERS = new HashMap<>();
+    private static final HashMap<Integer, ErrorObserver> ERROR_OBSERVERS = new HashMap<>();
+    private static final HashMap<Integer, Long> RECENT_BROADCAST_SENDS = new HashMap<>();
+
+    private static void observeSendErrors(int account) {
+        if (ERROR_OBSERVERS.containsKey(account)) return;
+        ErrorObserver observer = new ErrorObserver(account);
+        ERROR_OBSERVERS.put(account, observer);
+        NotificationCenter.getInstance(account).addObserver(observer, NotificationCenter.messageSendError);
+    }
+
+    /** Suppress generic send-error dialogs briefly while broadcast requests are in flight. */
+    public static boolean isTaskRunning(int account) {
+        String prefix = account + ":";
+        for (String key : RUNNERS.keySet()) {
+            if (key.startsWith(prefix)) return true;
+        }
+        Long lastSend = RECENT_BROADCAST_SENDS.get(account);
+        return lastSend != null && System.currentTimeMillis() - lastSend < 120000L;
+    }
+
+    private static final class ErrorObserver implements NotificationCenter.NotificationCenterDelegate {
+        private final int account;
+        ErrorObserver(int account) { this.account = account; }
+        @Override
+        public void didReceivedNotification(int id, int notificationAccount, Object... args) {
+            if (id != NotificationCenter.messageSendError || args == null || args.length == 0
+                    || !(args[0] instanceof Integer)) return;
+            long dialogId = SendMessagesHelper.getInstance(account)
+                    .getSendingMessageDialogId((Integer) args[0]);
+            if (dialogId != 0) {
+                MangoGroupBroadcastTaskStore.markSendFailure(account, dialogId, "Telegram 拒绝发送");
+            }
+        }
+    }
 
     private MangoGroupBroadcastManager() {
     }
@@ -23,6 +57,7 @@ public final class MangoGroupBroadcastManager {
         int safeMaxSeconds = Math.max(safeMinSeconds, maxSeconds);
         long taskId = MangoGroupBroadcastTaskStore.create(account, text, targetNames, targetIds,
                 safeMinSeconds, safeMaxSeconds);
+        observeSendErrors(account);
         Runner runner = new Runner(account, taskId, safeMinSeconds, safeMaxSeconds, 0);
         RUNNERS.put(key(account, taskId), runner);
         runner.scheduleNext();
@@ -103,6 +138,7 @@ public final class MangoGroupBroadcastManager {
                 }
                 long dialogId = current.targetIds.get(index);
                 try {
+                    RECENT_BROADCAST_SENDS.put(account, System.currentTimeMillis());
                     SendMessagesHelper.getInstance(account).sendMessage(SendMessagesHelper.SendMessageParams.of(
                             current.message, dialogId, null, null, null, true, null, null, null, true, 0, 0, null, false));
                     MangoGroupBroadcastTaskStore.markResult(account, taskId, dialogId, true, null);
