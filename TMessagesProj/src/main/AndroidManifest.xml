@@ -537,13 +537,6 @@
             android:foregroundServiceType="mediaPlayback"
         />
         <service
-            android:name="org.telegram.messenger.GcmPushListenerService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-        <service
     android:name=".NotificationsService"
     android:enabled="true"
     android:exported="false"
