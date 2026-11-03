@@ -3976,6 +3976,17 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         });
     }
 
+    /** Resolve a still-pending local message id while messageSendError is dispatched. */
+    public long getSendingMessageDialogId(int messageId) {
+        TLRPC.Message message = sendingMessages.get(messageId);
+        if (message == null) message = uploadMessages.get(messageId);
+        if (message == null) {
+            MessageObject object = unsentMessages.get(messageId);
+            if (object != null) message = object.messageOwner;
+        }
+        return message == null ? 0 : MessageObject.getDialogId(message);
+    }
+
     public void sendMessage(SendMessageParams sendMessageParams) {
         if (!sendMessageParams.mangoSkipConfirmation && sendMessageParams.retryMessageObject == null) {
             boolean voice = sendMessageParams.document != null && MessageObject.isVoiceDocument(sendMessageParams.document);
