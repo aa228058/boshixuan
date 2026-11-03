@@ -109,6 +109,11 @@ public final class CrossAccountInboxStore {
         final int messageId = message.getId();
         final int replyToMessageId = reply == null ? 0 : reply.reply_to_msg_id;
         final int messageType = message.messageOwner.media == null ? 1 : 2;
+        // Apply the user's saved account/group/type scope before writing anything
+        // to the unified-inbox store. The UI filter remains a defensive second check.
+        if (!matchesSavedInboxFilters(account, ownerId, dialogId, messageType)) {
+            return;
+        }
         final int date = message.messageOwner.date;
         TLRPC.User privateUser = dialogId > 0 ? controller.getUser(dialogId) : null;
         final String savedGroupTitle = chat != null ? (chat.title == null ? "" : chat.title)
@@ -117,6 +122,46 @@ public final class CrossAccountInboxStore {
         final String savedPreview = preview;
         storageQueue.postRunnable(() -> persistReply(account, ownerId, dialogId, messageId,
                 replyToMessageId, messageType, date, senderId, savedGroupTitle, savedSenderName, savedPreview));
+    }
+
+    /**
+     * Enforce the unified inbox scope at collection time, not only when rendering rows.
+     * Account scope is stored as comma-separated account slots (empty means all active
+     * accounts); group keys include account slot, owner id and dialog id.
+     */
+    private static boolean matchesSavedInboxFilters(int account, long ownerId,
+                                                    long dialogId, int messageType) {
+        SharedPreferences ui = ApplicationLoader.applicationContext.getSharedPreferences(
+                "cross_account_inbox_ui", Context.MODE_PRIVATE);
+        String accountScope = ui.getString("cross_account_inbox_scope_accounts", "");
+        if (!TextUtils.isEmpty(accountScope)) {
+            boolean included = false;
+            String[] accountIds = accountScope.split(",");
+            for (String value : accountIds) {
+                try {
+                    if (Integer.parseInt(value.trim()) == account) {
+                        included = true;
+                        break;
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+            if (!included) return false;
+        }
+
+        int typeFilter = ui.getInt("cross_account_inbox_reply_type", 0);
+        if (typeFilter != 0 && typeFilter != messageType) return false;
+
+        // A group selection never suppresses private incoming messages.
+        if (dialogId < 0) {
+            HashSet<String> selectedGroups = new HashSet<>(ui.getStringSet(
+                    "cross_account_inbox_scope_groups", new HashSet<>()));
+            if (!selectedGroups.isEmpty()) {
+                String groupKey = account + ":" + ownerId + ":" + dialogId;
+                if (!selectedGroups.contains(groupKey)) return false;
+            }
+        }
+        return true;
     }
 
     /** Collect replies from a regular history page, allowing exact targets in the same page. */
